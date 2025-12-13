@@ -33,7 +33,7 @@ export function ChatInterface() {
 
     const scrollToBottom = () => {
         if (scrollViewport.current) {
-            const scrollArea = scrollViewport.current.querySelector('[data-radix-scroll-area-viewport]');
+            const scrollArea = scrollViewport.current.querySelector('[data-slot="scroll-area-viewport"]');
             if (scrollArea) {
                 scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
             }
@@ -161,18 +161,20 @@ export function ChatInterface() {
 
             {/* Main Chat Area */}
             <Card className="flex-1 flex flex-col h-full border-muted shadow-lg overflow-hidden">
-                <ScrollArea className="flex-1 p-4" ref={scrollViewport}>
-                    <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full pb-4">
-                        {messages.length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-[50vh] text-center text-muted-foreground opacity-50">
-                                <Database className="w-12 h-12 mb-4" />
-                                <p className="text-lg font-medium">Ready to chat with your data</p>
-                                <p className="text-sm">Ingest some text on the left, then ask questions about it.</p>
-                            </div>
-                        )}
-                        {messages.map((msg, i) => (
-                            <MessageBubble key={i} {...msg} />
-                        ))}
+                <ScrollArea className="flex-1 min-h-0" ref={scrollViewport}>
+                    <div className="p-4">
+                        <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full pb-4">
+                            {messages.length === 0 && (
+                                <div className="flex flex-col items-center justify-center h-[50vh] text-center text-muted-foreground opacity-50">
+                                    <Database className="w-12 h-12 mb-4" />
+                                    <p className="text-lg font-medium">Ready to chat with your data</p>
+                                    <p className="text-sm">Ingest some text on the left, then ask questions about it.</p>
+                                </div>
+                            )}
+                            {messages.map((msg, i) => (
+                                <MessageBubble key={i} {...msg} />
+                            ))}
+                        </div>
                     </div>
                 </ScrollArea>
 
