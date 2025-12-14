@@ -1,4 +1,4 @@
-# RAG Agent: Deep Technical Implementation Guide
+# RAG Agent: Technical Implementation Guide
 
 This document serves as a comprehensive technical manual for the RAG Agent. It explains not just *what* we built, but *how* and *why* each component was implemented, down to the code level.
 
