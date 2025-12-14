@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
         // 2. Setup LLM (Force Local Ollama)
         const llm = new ChatOllama({
-            model: "",
+            model: "gpt-oss:20b-cloud",
             baseUrl: "http://127.0.0.1:11434", // Localhost IP
             temperature: 0.7,
         });

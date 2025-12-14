@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
-import { Send, PlusCircle, Database, Loader2 } from "lucide-react";
+import { Send, PlusCircle, Database, Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 
 interface Source {
@@ -61,6 +61,33 @@ export function ChatInterface() {
             setIngestText("");
         } catch (err: any) {
             toast.error(err.message || "Failed to ingest text");
+        } finally {
+            setIsIngesting(false);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsIngesting(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch("/api/ingest", {
+                method: "POST",
+                // Note: Do NOT set Content-Type header for FormData, browser sets it with boundary
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Ingestion failed");
+
+            toast.success(`Ingested ${file.name} (${data.chunks} chunks).`);
+            e.target.value = ""; // Reset input
+        } catch (err: any) {
+            toast.error(err.message || "Failed to upload file");
         } finally {
             setIsIngesting(false);
         }
@@ -138,23 +165,54 @@ export function ChatInterface() {
                         RAG Knowledge Base
                     </CardTitle>
                     <CardDescription>
-                        Add text content to the local vector store for the AI to reference.
+                        Add text or files to the local vector store.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col gap-4">
-                    <textarea
-                        className="flex min-h-[50%] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="Paste text specific to your query here (e.g. documentation, articles)..."
-                        value={ingestText}
-                        onChange={(e) => setIngestText(e.target.value)}
-                    />
-                    <Button onClick={handleIngest} disabled={isIngesting || !ingestText.trim()} className="w-full">
-                        {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                        Ingest Content
-                    </Button>
+                    {/* Manual Text Entry */}
+                    <div className="flex flex-col gap-2 flex-grow">
+                        <label className="text-sm font-medium">Paste Text</label>
+                        <textarea
+                            className="flex min-h-[150px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="Paste text... (e.g. documentation, articles)"
+                            value={ingestText}
+                            onChange={(e) => setIngestText(e.target.value)}
+                        />
+                        <Button onClick={handleIngest} disabled={isIngesting || !ingestText.trim()} className="w-full" variant="secondary">
+                            {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                            Ingest Text
+                        </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="h-px bg-border flex-1" />
+                        <span className="text-xs uppercase">OR</span>
+                        <div className="h-px bg-border flex-1" />
+                    </div>
+
+                    {/* File Upload */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium">Upload File (PDF/Text)</label>
+                        <input
+                            type="file"
+                            id="file-upload"
+                            className="hidden"
+                            accept=".pdf,.txt,.md"
+                            onChange={handleFileUpload}
+                            disabled={isIngesting}
+                        />
+                        <Button
+                            onClick={() => document.getElementById('file-upload')?.click()}
+                            disabled={isIngesting}
+                            className="w-full"
+                        >
+                            {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Paperclip className="mr-2 h-4 w-4" />}
+                            Upload Document
+                        </Button>
+                    </div>
 
                     <div className="mt-auto text-xs text-muted-foreground p-2 border rounded bg-muted/20">
-                        <p><strong>Note:</strong> Data is stored in-memory (using MemoryVectorStore) provided by LangChain. It resets when the server restarts.</p>
+                        <p><strong>Note:</strong> Supported files: PDF, TXT, MD. Content is stored in MongoDB Atlas.</p>
                     </div>
                 </CardContent>
             </Card>
