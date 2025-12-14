@@ -22,6 +22,12 @@ export async function POST(req: NextRequest) {
         const retriever = vectorStore.asRetriever(3); // Top 3 results
         const contextDocs = await retriever.invoke(question);
 
+        console.log(`🔍 Retrieved ${contextDocs.length} documents for query: "${question}"`);
+        if (contextDocs.length > 0) {
+            console.log("📄 First doc source:", contextDocs[0].metadata.source);
+            console.log("📄 First doc preview:", contextDocs[0].pageContent.slice(0, 100));
+        }
+
         // Combine docs for the LLM prompt
         const context = contextDocs.map((doc: any) => doc.pageContent).join("\n\n");
 
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
 
         // 2. Setup LLM (Force Local Ollama)
         const llm = new ChatOllama({
-            model: "",
+            model: "gpt-oss:20b-cloud",
             baseUrl: "http://127.0.0.1:11434", // Localhost IP
             temperature: 0.7,
         });
