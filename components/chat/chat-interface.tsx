@@ -155,70 +155,116 @@ export function ChatInterface() {
         }
     };
 
+    const [activeTab, setActiveTab] = useState<"text" | "file">("file");
+
     return (
-        <div className="flex bg-background w-full h-screen p-4 gap-4">
+        <div className="flex bg-background w-full h-screen p-4 gap-4 font-sans">
             {/* Sidebar / Ingestion Area */}
-            <Card className="w-1/3 flex flex-col h-full border-muted">
-                <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2">
-                        <Database className="w-5 h-5" />
-                        RAG Knowledge Base
+            <Card className="w-1/3 flex flex-col h-full border-none shadow-xl bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-md overflow-hidden">
+                <CardHeader className="bg-primary/5 border-b pb-6">
+                    <CardTitle className="text-xl flex items-center gap-2 font-bold tracking-tight">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                            <Database className="w-5 h-5 text-primary" />
+                        </div>
+                        Knowledge Base
                     </CardTitle>
-                    <CardDescription>
-                        Add text or files to the local vector store.
+                    <CardDescription className="text-muted-foreground/80">
+                        Feed your agent with custom knowledge.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col gap-4">
-                    {/* Manual Text Entry */}
-                    <div className="flex flex-col gap-2 flex-grow">
-                        <label className="text-sm font-medium">Paste Text</label>
-                        <textarea
-                            className="flex min-h-[150px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            placeholder="Paste text... (e.g. documentation, articles)"
-                            value={ingestText}
-                            onChange={(e) => setIngestText(e.target.value)}
-                        />
-                        <Button onClick={handleIngest} disabled={isIngesting || !ingestText.trim()} className="w-full" variant="secondary">
-                            {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                            Ingest Text
-                        </Button>
-                    </div>
 
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <div className="h-px bg-border flex-1" />
-                        <span className="text-xs uppercase">OR</span>
-                        <div className="h-px bg-border flex-1" />
-                    </div>
-
-                    {/* File Upload */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium">Upload File (PDF/Text)</label>
-                        <input
-                            type="file"
-                            id="file-upload"
-                            className="hidden"
-                            accept=".pdf,.txt,.md"
-                            onChange={handleFileUpload}
-                            disabled={isIngesting}
-                        />
-                        <Button
-                            onClick={() => document.getElementById('file-upload')?.click()}
-                            disabled={isIngesting}
-                            className="w-full"
+                <CardContent className="flex-1 flex flex-col gap-6 pt-6">
+                    {/* Tabs */}
+                    <div className="grid grid-cols-2 p-1 bg-muted/50 rounded-lg">
+                        <button
+                            onClick={() => setActiveTab("file")}
+                            className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "file"
+                                    ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                }`}
                         >
-                            {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Paperclip className="mr-2 h-4 w-4" />}
-                            Upload Document
-                        </Button>
+                            <Paperclip className="w-4 h-4" />
+                            File Upload
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("text")}
+                            className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "text"
+                                    ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                }`}
+                        >
+                            <PlusCircle className="w-4 h-4" />
+                            Paste Text
+                        </button>
                     </div>
 
-                    <div className="mt-auto text-xs text-muted-foreground p-2 border rounded bg-muted/20">
-                        <p><strong>Note:</strong> Supported files: PDF, TXT, MD. Content is stored in MongoDB Atlas.</p>
+                    <div className="flex-1 flex flex-col">
+                        {activeTab === "text" ? (
+                            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
+                                <label className="text-sm font-semibold text-foreground/80">Content</label>
+                                <textarea
+                                    className="flex-1 min-h-[300px] w-full rounded-xl border border-input bg-background/50 px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    placeholder="Paste technical documentation, notes, or articles here..."
+                                    value={ingestText}
+                                    onChange={(e) => setIngestText(e.target.value)}
+                                />
+                                <Button
+                                    onClick={handleIngest}
+                                    disabled={isIngesting || !ingestText.trim()}
+                                    className="w-full h-12 bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 rounded-xl font-medium"
+                                >
+                                    {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                                    AddTo Vector Store
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-2 duration-300 h-full">
+                                <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl flex-1 flex flex-col items-center justify-center gap-4 bg-muted/5 hover:bg-muted/10 hover:border-primary/50 transition-colors group cursor-pointer relative"
+                                    onClick={() => document.getElementById('file-upload')?.click()}>
+
+                                    <input
+                                        type="file"
+                                        id="file-upload"
+                                        className="hidden"
+                                        accept=".pdf,.txt,.md"
+                                        onChange={handleFileUpload}
+                                        disabled={isIngesting}
+                                    />
+
+                                    <div className="p-4 rounded-full bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-300">
+                                        <Paperclip className="w-8 h-8" />
+                                    </div>
+                                    <div className="text-center px-4">
+                                        <p className="text-sm font-semibold text-foreground">Click to upload documents</p>
+                                        <p className="text-xs text-muted-foreground mt-1">PDF, TXT, MD (Max 10MB)</p>
+                                    </div>
+                                    {isIngesting && (
+                                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                                <span className="text-sm font-medium">Processing...</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-600 text-xs">
+                                    <strong>Note:</strong> Files are parsed securely on the server.
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span>Connected to <strong>MongoDB Atlas</strong></span>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Main Chat Area */}
-            <Card className="flex-1 flex flex-col h-full border-muted shadow-lg overflow-hidden">
+            <Card className="flex-1 flex flex-col h-full border-none shadow-2xl overflow-hidden bg-background">
                 <ScrollArea className="flex-1 min-h-0" ref={scrollViewport}>
                     <div className="p-4">
                         <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full pb-4">
