@@ -9,11 +9,19 @@ export async function POST(req: NextRequest) {
 
         let text = "";
         let source = "user-upload";
+        let isGithub = false;
 
         if (contentType.includes("application/json")) {
             const body = await req.json();
             text = body.text;
             source = body.source || "user-paste";
+
+            // Check if text is a GitHub URL
+            if (text.startsWith("https://github.com/")) {
+                isGithub = true;
+                source = text; // Set source to repo URL
+            }
+
         } else if (contentType.includes("multipart/form-data")) {
             const formData = await req.formData();
             const file = formData.get("file") as File;
@@ -37,11 +45,45 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Unsupported content type" }, { status: 400 });
         }
 
+        const vectorStore = await getVectorStore();
+
+        // --- GitHub Logic ---
+        if (isGithub) {
+            console.log(`Cloning GitHub Repo: ${source}`);
+            try {
+                const { GithubRepoLoader } = await import("@langchain/community/document_loaders/web/github");
+
+                const loader = new GithubRepoLoader(source, {
+                    branch: "main",
+                    recursive: true,
+                    unknown: "warn",
+                    ignoreFiles: ["package-lock.json", "yarn.lock", "*.svg", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.ico"],
+                });
+
+                const docs = await loader.load();
+                console.log(`Loaded ${docs.length} files from GitHub`);
+
+                // Split loaded docs
+                const splitter = new RecursiveCharacterTextSplitter({
+                    chunkSize: 1000,
+                    chunkOverlap: 200,
+                });
+
+                const splitDocs = await splitter.splitDocuments(docs);
+                await vectorStore.addDocuments(splitDocs);
+
+                return NextResponse.json({ success: true, chunks: splitDocs.length });
+
+            } catch (ghError: any) {
+                console.error("GitHub Loader Error:", ghError);
+                return NextResponse.json({ error: "Failed to load GitHub repo: " + ghError.message }, { status: 500 });
+            }
+        }
+
+        // --- Standard Logic ---
         if (!text) {
             return NextResponse.json({ error: "No text extracted" }, { status: 400 });
         }
-
-        const vectorStore = await getVectorStore();
 
         // Split text into chunks
         const splitter = new RecursiveCharacterTextSplitter({

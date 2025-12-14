@@ -155,14 +155,14 @@ export function ChatInterface() {
         }
     };
 
-    const [activeTab, setActiveTab] = useState<"text" | "file">("file");
+    const [activeTab, setActiveTab] = useState<"text" | "file" | "github">("file");
 
     return (
         <div className="flex bg-background w-full h-screen p-4 gap-4 font-sans">
             {/* Sidebar / Ingestion Area */}
             <Card className="w-1/3 flex flex-col h-full border-none shadow-xl bg-gradient-to-br from-card/50 to-background/50 backdrop-blur-md overflow-hidden">
                 <CardHeader className="bg-primary/5 border-b pb-6">
-                    <CardTitle className="text-xl flex items-center gap-2 font-bold tracking-tight">
+                    <CardTitle className="text-xl flex items-center gap-2 font-bold tracking-tight mt-5">
                         <div className="p-2 bg-primary/10 rounded-lg">
                             <Database className="w-5 h-5 text-primary" />
                         </div>
@@ -175,31 +175,41 @@ export function ChatInterface() {
 
                 <CardContent className="flex-1 flex flex-col gap-6 pt-6">
                     {/* Tabs */}
-                    <div className="grid grid-cols-2 p-1 bg-muted/50 rounded-lg">
+                    <div className="grid grid-cols-3 p-1 bg-muted/50 rounded-lg">
                         <button
                             onClick={() => setActiveTab("file")}
-                            className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "file"
-                                    ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
-                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                            className={`flex items-center justify-center gap-2 px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "file"
+                                ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+                                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                                 }`}
                         >
                             <Paperclip className="w-4 h-4" />
-                            File Upload
+                            File
                         </button>
                         <button
                             onClick={() => setActiveTab("text")}
-                            className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "text"
-                                    ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
-                                    : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                            className={`flex items-center justify-center gap-2 px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "text"
+                                ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+                                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                                 }`}
                         >
                             <PlusCircle className="w-4 h-4" />
-                            Paste Text
+                            Text
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("github")}
+                            className={`flex items-center justify-center gap-2 px-2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${activeTab === "github"
+                                ? "bg-background text-foreground shadow-sm ring-1 ring-black/5"
+                                : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                                }`}
+                        >
+                            <code className="text-xs">&lt;/&gt;</code>
+                            GitHub
                         </button>
                     </div>
 
                     <div className="flex-1 flex flex-col">
-                        {activeTab === "text" ? (
+                        {activeTab === "text" && (
                             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
                                 <label className="text-sm font-semibold text-foreground/80">Content</label>
                                 <textarea
@@ -217,7 +227,9 @@ export function ChatInterface() {
                                     AddTo Vector Store
                                 </Button>
                             </div>
-                        ) : (
+                        )}
+
+                        {activeTab === "file" && (
                             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-2 duration-300 h-full">
                                 <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl flex-1 flex flex-col items-center justify-center gap-4 bg-muted/5 hover:bg-muted/10 hover:border-primary/50 transition-colors group cursor-pointer relative"
                                     onClick={() => document.getElementById('file-upload')?.click()}>
@@ -249,6 +261,39 @@ export function ChatInterface() {
                                 </div>
                                 <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-600 text-xs">
                                     <strong>Note:</strong> Files are parsed securely on the server.
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === "github" && (
+                            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <label className="text-sm font-semibold text-foreground/80">Repository URL</label>
+                                <div className="flex-1 flex flex-col justify-center gap-4">
+                                    <input
+                                        className="w-full rounded-xl border border-input bg-background/50 px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        placeholder="https://github.com/username/repo"
+                                        value={ingestText}
+                                        onChange={(e) => setIngestText(e.target.value)}
+                                        disabled={isIngesting}
+                                    />
+                                    <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                                        <h4 className="text-xs font-semibold text-blue-600 mb-2">Capabilities</h4>
+                                        <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                                            <li>Clones public repositories</li>
+                                            <li>Extracts code & text files</li>
+                                            <li>Ignores images/binaries</li>
+                                            <li>Recursive search</li>
+                                        </ul>
+                                    </div>
+
+                                    <Button
+                                        onClick={handleIngest}
+                                        disabled={isIngesting || !ingestText.startsWith("https://github.com/")}
+                                        className="w-full h-12 bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 rounded-xl font-medium mt-auto"
+                                    >
+                                        {isIngesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                                        Import Repository
+                                    </Button>
                                 </div>
                             </div>
                         )}
