@@ -271,7 +271,7 @@ export function ChatInterface() {
                                 <div className="flex-1 flex flex-col justify-center gap-4">
                                     <input
                                         className="w-full rounded-xl border border-input bg-background/50 px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                        placeholder="https://github.com/username/repo"
+                                        placeholder="https://github.com/username/repo OR https://github.com/username"
                                         value={ingestText}
                                         onChange={(e) => setIngestText(e.target.value)}
                                         disabled={isIngesting}
@@ -281,7 +281,7 @@ export function ChatInterface() {
                                         <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
                                             <li>Clones public repositories</li>
                                             <li>Extracts code & text files</li>
-                                            <li>Ignores images/binaries</li>
+                                            <li>User Profiles (Commits/Streaks)</li>
                                             <li>Recursive search</li>
                                         </ul>
                                     </div>
