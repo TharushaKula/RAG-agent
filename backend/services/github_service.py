@@ -158,28 +158,35 @@ import tempfile
 import fnmatch
 from langchain_community.document_loaders import GitLoader
 
-async def ingest_github_repo(url: str):
+async def ingest_github_repo(repo_url: str, user_id: str = "all"):
     # Use GitLoader with a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        folder_name = url.split("/")[-1]
-        repo_path = f"{temp_dir}/{folder_name}"
-        
         ignore_paths = ["package-lock.json", "yarn.lock", "*.svg", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.ico"]
         
         def file_filter(file_path):
             return not any(fnmatch.fnmatch(file_path, pattern) for pattern in ignore_paths)
 
+        # Clone repo
         loader = GitLoader(
-            repo_path=repo_path,
-            clone_url=url,
-            branch="main",
+            repo_path=temp_dir,
+            clone_url=repo_url,
+            branch="main", # Default to main, could be dynamic
             file_filter=file_filter
         )
-        
         docs = loader.load()
-        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        split_docs = splitter.split_documents(docs)
+
+        # Split
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        chunks = text_splitter.split_documents(docs)
+
+        # Add Metadata
+        for doc in chunks:
+            doc.metadata["source"] = repo_url
+            doc.metadata["user_id"] = user_id
         
+        # Ingest
         vector_store = get_vector_store()
-        await vector_store.aadd_documents(split_docs)
-        return len(split_docs)
+        await vector_store.aadd_documents(chunks)
+
+        return len(chunks)
+

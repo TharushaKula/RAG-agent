@@ -1,42 +1,39 @@
-from fastapi import APIRouter, UploadFile, File, Form, Body, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-import pypdf
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from backend.services.auth_service import get_current_user
+from backend.models.user import User
+from backend.models.ingest import IngestRequest
+from backend.services.ingest_service import ingest_text, ingest_github_repo, scrape_github_profile
 import io
-from backend.services.github_service import scrape_github_profile, ingest_github_repo
-from backend.services.ingest_service import ingest_text
+import pypdf
 
 router = APIRouter()
 
-class IngestRequest(BaseModel):
-    text: str
-    source: Optional[str] = "user-paste"
-
 @router.post("/text")
-async def ingest_text_route(request: IngestRequest):
+async def ingest_text_route(
+    request: IngestRequest,
+    current_user: User = Depends(get_current_user)
+):
     try:
         text = request.text
         source = request.source
+        user_id = current_user.id
         
         # Check GitHub
         if text.startswith("https://github.com/"):
-            # Simple heuristic: if url has 4 parts (https, github.com, user, repo) it's a repo
-            # Profiles have 3 parts (https, github.com, user)
+             # Just pass user_id to ingest_github_repo
+             
+            # Simple heuristic
             is_profile = "/tree/" not in text and "/blob/" not in text and len(text.rstrip("/").split("/")) == 4
             if is_profile:
-                # Actually profiles are usually 3 parts: github.com/username
-                # But let's check properly: ["https:", "", "github.com", "username"] -> len 4
-                # ["https:", "", "github.com", "username", "repo"] -> len 5
-                parts = text.rstrip("/").split("/")
-                if len(parts) == 4:
-                    await scrape_github_profile(text)
-                    return {"success": True, "message": "Profile ingested"}
-                else:
-                    count = await ingest_github_repo(text)
-                    return {"success": True, "chunks": count}
+                 # Profile scraping doesn't strictly need user isolation yet, or we can add it later
+                 await scrape_github_profile(text) 
+                 return {"success": True, "message": "Profile ingested"}
+            else:
+                 count = await ingest_github_repo(text, user_id=user_id)
+                 return {"success": True, "chunks": count}
         
         # Normal Text
-        count = await ingest_text(text, source)
+        count = await ingest_text(text, source, user_id=user_id)
         return {"success": True, "chunks": count}
 
     except Exception as e:
@@ -44,10 +41,14 @@ async def ingest_text_route(request: IngestRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/file")
-async def ingest_file_route(file: UploadFile = File(...)):
+async def ingest_file_route(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
     try:
         content = await file.read()
         source = file.filename
+        user_id = current_user.id
         
         text_content = ""
         if file.content_type == "application/pdf":
@@ -57,7 +58,7 @@ async def ingest_file_route(file: UploadFile = File(...)):
         else:
             text_content = content.decode("utf-8")
         
-        count = await ingest_text(text_content, source)
+        count = await ingest_text(text_content, source, user_id=user_id)
         return {"success": True, "chunks": count}
 
     except Exception as e:

@@ -2,11 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
+import { ProfileMenu } from "./profile-menu";
 import { Send, PlusCircle, Database, Loader2, Paperclip } from "lucide-react";
+
 import { toast } from "sonner";
 
 interface Source {
@@ -24,6 +27,7 @@ export function ChatInterface() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const { token, logout } = useAuth();
     const [sources, setSources] = useState<Source[]>([]);
     const [isSourcesOpen, setIsSourcesOpen] = useState(false);
 
@@ -52,10 +56,14 @@ export function ChatInterface() {
         try {
             const res = await fetch("http://localhost:8000/api/ingest/text", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ text: ingestText, source: "user-paste" }),
             });
 
+            if (res.status === 401) { logout(); return; }
             if (!res.ok) throw new Error("Ingestion failed");
 
             const data = await res.json();
@@ -79,9 +87,18 @@ export function ChatInterface() {
         try {
             const res = await fetch("http://localhost:8000/api/ingest/file", {
                 method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
                 // Note: Do NOT set Content-Type header for FormData, browser sets it with boundary
                 body: formData,
             });
+
+            if (res.status === 401) { // Handle 401 Unauthorized
+                logout();
+                toast.error("Session expired. Please log in again.");
+                return;
+            }
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Ingestion failed");
@@ -107,11 +124,16 @@ export function ChatInterface() {
         try {
             const response = await fetch("http://localhost:8000/api/chat", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     messages: [...messages, userMessage],
                 }),
             });
+
+            if (response.status === 401) { logout(); return; }
 
             if (!response.ok) throw new Error("Network response was not ok");
             if (!response.body) throw new Error("No response body");
@@ -319,9 +341,19 @@ export function ChatInterface() {
 
             {/* Main Chat Area */}
             <Card className="flex-1 flex flex-col h-full border-none shadow-2xl overflow-hidden bg-background">
+                {/* Header */}
+                <div className="border-b p-4 flex items-center justify-between bg-background/95 backdrop-blur z-10 sticky top-0">
+                    <div>
+                        <h2 className="text-lg font-bold">RAG Agent</h2>
+                        <p className="text-xs text-muted-foreground">Ask questions to your documents</p>
+                    </div>
+                    <ProfileMenu />
+                </div>
+
                 <ScrollArea className="flex-1 min-h-0" ref={scrollViewport}>
                     <div className="p-4">
                         <div className="flex flex-col gap-4 max-w-3xl mx-auto w-full pb-4">
+
                             {messages.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-[50vh] text-center text-muted-foreground opacity-50">
                                     <Database className="w-12 h-12 mb-4" />

@@ -8,29 +8,35 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_ollama import ChatOllama
+from backend.services.auth_service import get_current_user
+from backend.models.user import User
+from backend.models.chat import ChatRequest
 from backend.core.database import get_vector_store
 from backend.core.config import settings
+from fastapi import Depends
 
 router = APIRouter()
 
-class Message(BaseModel):
-    role: str
-    content: str
-
-class ChatRequest(BaseModel):
-    messages: List[Message]
-
 @router.post("")
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user)
+):
     try:
         if not request.messages:
             return {"error": "No messages"}
         
         question = request.messages[-1].content
+        user_id = current_user.id
         
-        # 1. Retrieve
+        # 1. Retrieve (Filter by user_id)
         vector_store = get_vector_store()
-        retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+        retriever = vector_store.as_retriever(
+            search_kwargs={
+                "k": 3,
+                "pre_filter": {"user_id": {"$eq": user_id}}
+            }
+        )
         docs = await retriever.ainvoke(question)
         
         # 2. Format Context
