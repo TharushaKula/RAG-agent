@@ -192,8 +192,8 @@ export default function LoginPage() {
                                 <div className="absolute -top-10 right-0 w-10 h-10 bg-transparent shadow-[15px_15px_0_0_#fff] rounded-br-[20px]" />
                                 <div className="absolute bottom-0 -left-10 w-10 h-10 bg-transparent shadow-[15px_15px_0_0_#fff] rounded-br-[20px]" />
 
-                                <h3 className="text-black font-bold text-xl mb-2 pr-4">Get your right job and right place apply now</h3>
-                                <p className="text-gray-500 text-xs mb-4">Be among the first founders to experience the easiest way to start run a business.</p>
+                                <h3 className="text-black font-bold text-xl mb-2 pr-4">Don't Just Learn! Get Career-Ready</h3>
+                                <p className="text-gray-500 text-xs mb-4">Be among the first professionals to master the new era of AI-guided learning</p>
 
                                 <div className="flex -space-x-3">
                                     <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=A`} alt="User" /></div>

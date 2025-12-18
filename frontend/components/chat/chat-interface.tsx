@@ -222,6 +222,10 @@ export function ChatInterface() {
                                 </div>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => router.push("/profile")} className="cursor-pointer">
+                                <UserIcon className="mr-2 h-4 w-4" />
+                                <span>Profile</span>
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={logout} className="text-red-500 focus:text-red-500 cursor-pointer">
                                 <LogOut className="mr-2 h-4 w-4" />
                                 <span>Log out</span>
