@@ -190,7 +190,7 @@ export function ChatInterface() {
     if (!user) return null; // Redirect handled in useEffect
 
     return (
-        <div className="flex flex-col h-screen bg-background font-sans">
+        <div className="flex flex-col h-screen bg-background font-sans w-full">
             {/* Header */}
             <header className="flex items-center justify-between px-6 py-3 border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="flex items-center gap-2">
