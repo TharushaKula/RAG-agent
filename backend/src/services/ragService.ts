@@ -1,6 +1,6 @@
 import { MongoDBAtlasVectorSearch } from "@langchain/mongodb";
 import { OllamaEmbeddings } from "@langchain/ollama";
-import clientPromise from "./mongodb";
+import clientPromise from "../config/db";
 
 const embeddings = new OllamaEmbeddings({
     model: "nomic-embed-text",
@@ -19,10 +19,20 @@ export async function getVectorStore() {
     });
 }
 
-// Helper to add documents (Unified interface for ingest route)
-// Note: MongoDBAtlasVectorSearch.fromDocuments usually creates a new store, 
-// but we can just add documents to the existing collection instance.
 export async function addDocuments(documents: any[]) {
     const vectorStore = await getVectorStore();
     await vectorStore.addDocuments(documents);
+}
+
+export async function getRetrieverForUser(userId: string) {
+    const vectorStore = await getVectorStore();
+    return vectorStore.asRetriever({
+        filter: {
+            preFilter: {
+                userId: {
+                    $eq: userId
+                }
+            }
+        }
+    });
 }

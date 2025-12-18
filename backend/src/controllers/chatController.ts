@@ -1,25 +1,27 @@
-import { NextRequest } from "next/server";
+import { Request, Response } from "express";
 import { ChatOllama } from "@langchain/ollama";
-import { getVectorStore } from "@/lib/rag-store";
+import { getRetrieverForUser } from "../services/ragService";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
 
-export async function POST(req: NextRequest) {
+export const chat = async (req: Request, res: Response) => {
     try {
-        const body = await req.json();
-        const { messages } = body;
+        if (!(req as any).user) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const userId = (req as any).user.userId;
 
+        const { messages } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
-            return new Response("No messages provided", { status: 400 });
+            return res.status(400).send("No messages provided");
         }
 
         const lastMessage = messages[messages.length - 1];
         const question = lastMessage.content;
 
         // 1. Retrieve context
-        const vectorStore = await getVectorStore();
-        const retriever = vectorStore.asRetriever(3); // Top 3 results
+        const retriever = await getRetrieverForUser(userId);
         const contextDocs = await retriever.invoke(question);
 
         console.log(`🔍 Retrieved ${contextDocs.length} documents for query: "${question}"`);
@@ -32,10 +34,8 @@ export async function POST(req: NextRequest) {
         const context = contextDocs.map((doc: any) => doc.pageContent).join("\n\n");
 
         // --- FIX: SAFE SOURCE HEADER ---
-        // Only map metadata. LIMIT the size to prevent 431 Header Errors.
         const validSources = contextDocs.map((doc: any) => ({
             source: doc.metadata.source,
-            // snippet: doc.pageContent.slice(0, 50) + "..." // Optional: tiny snippet only
         }));
 
         // Encode safe JSON to Base64
@@ -73,29 +73,20 @@ export async function POST(req: NextRequest) {
         });
 
         // 4. Return stream with Sources in Header
-        const encoder = new TextEncoder();
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("X-Sources", encodedSources);
 
-        const customStream = new ReadableStream({
-            async start(controller) {
-                for await (const chunk of stream) {
-                    controller.enqueue(encoder.encode(chunk));
-                }
-                controller.close();
-            },
-        });
-
-        return new Response(customStream, {
-            headers: {
-                "Content-Type": "text/plain; charset=utf-8",
-                "X-Sources": encodedSources, // Safe, lightweight header
-            },
-        });
+        for await (const chunk of stream) {
+            res.write(chunk);
+        }
+        res.end();
 
     } catch (error: any) {
         console.error("Chat error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" }
-        });
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.end();
+        }
     }
 }

@@ -1,55 +1,54 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getVectorStore } from "@/lib/rag-store";
+import { Request, Response } from "express";
+import { getVectorStore } from "../services/ragService";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Document } from "@langchain/core/documents";
+import * as cheerio from "cheerio";
 
-export async function POST(req: NextRequest) {
+export const ingestData = async (req: Request, res: Response) => {
     try {
-        const contentType = req.headers.get("content-type") || "";
-
+        const contentType = req.headers["content-type"] || "";
         let text = "";
         let source = "user-upload";
         let isGithub = false;
 
         if (contentType.includes("application/json")) {
-            const body = await req.json();
+            const body = req.body; // express.json() middleware needed
             text = body.text;
             source = body.source || "user-paste";
 
-            // Check if text is a GitHub URL
-            if (text.startsWith("https://github.com/")) {
+            if (text && text.startsWith("https://github.com/")) {
                 isGithub = true;
-                source = text; // Set source to repo URL
+                source = text;
             }
 
         } else if (contentType.includes("multipart/form-data")) {
-            const formData = await req.formData();
-            const file = formData.get("file") as File;
-
+            const file = req.file;
             if (!file) {
-                return NextResponse.json({ error: "No file provided" }, { status: 400 });
+                return res.status(400).json({ error: "No file provided" });
             }
+            source = file.originalname;
+            const buffer = file.buffer;
 
-            source = file.name;
-            const buffer = Buffer.from(await file.arrayBuffer());
-
-            if (file.type === "application/pdf") {
-                const pdf = await import("pdf-parse/lib/pdf-parse.js");
+            if (file.mimetype === "application/pdf") {
+                const pdf = await import("pdf-parse");
                 const data = await pdf.default(buffer);
                 text = data.text;
             } else {
-                // Assume text/plain or markdown
                 text = buffer.toString("utf-8");
             }
         } else {
-            return NextResponse.json({ error: "Unsupported content type" }, { status: 400 });
+            return res.status(400).json({ error: "Unsupported content type" });
         }
+
+        if (!(req as any).user) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const userId = (req as any).user.userId;
 
         const vectorStore = await getVectorStore();
 
         // --- GitHub Logic ---
         if (isGithub) {
-            // Check if it's a Profile URL (no sub-paths like /tree/ or /blob/)
             const isProfile = !source.includes("/tree/") && !source.includes("/blob/") && source.split("/").length === 4;
 
             if (isProfile) {
@@ -70,20 +69,15 @@ export async function POST(req: NextRequest) {
 
                 try {
                     // 1. Scrape for Streaks & Total (Fallback + Repos)
-                    const cheerio = await import("cheerio");
-
-                    // Fetch Heatmap for Streaks
                     const contribUrl = `https://github.com/users/${username}/contributions`;
                     const resVideo = await fetch(contribUrl);
                     if (resVideo.ok) {
                         const html = await resVideo.text();
                         const $ = cheerio.load(html);
 
-                        // Extract Total Contributions (Fallback)
                         const totalText = $("h2.f4").text().trim().replace(/[^\d]/g, '');
                         profileData.totalContributions = parseInt(totalText || "0", 10);
 
-                        // Calculate Streaks
                         const days: { date: string, count: number }[] = [];
                         $("td.ContributionCalendar-day").each((_, el) => {
                             const count = parseInt($(el).attr("data-count") || "0", 10);
@@ -122,14 +116,11 @@ export async function POST(req: NextRequest) {
                         profileData.activeDays = days.filter(d => d.count > 0).length;
                     }
 
-                    // Fetch Main Page for Repo Count (Fallback)
                     try {
-                        const mainRes = await fetch(source); // source is https://github.com/username
+                        const mainRes = await fetch(source);
                         if (mainRes.ok) {
                             const mainHtml = await mainRes.text();
                             const $main = cheerio.load(mainHtml);
-                            // Look for the "Repositories" tab counter
-                            // Typically: <a href="/user?tab=repositories" ...><span class="Counter">30</span></a>
                             const repoCountText = $main(`a[href*="tab=repositories"] .Counter`).first().text().trim();
                             const repoCount = parseInt(repoCountText || "0", 10);
                             if (!isNaN(repoCount)) {
@@ -140,7 +131,6 @@ export async function POST(req: NextRequest) {
                         console.warn("Failed to scrape main profile for repo count:", scrapeErr);
                     }
 
-                    // 2. Fetch Exact Stats via API (If Token Available)
                     if (process.env.GITHUB_TOKEN) {
                         try {
                             const query = `
@@ -181,12 +171,6 @@ export async function POST(req: NextRequest) {
                                     profileData.pullRequests = contribs.totalPullRequestContributions;
                                     profileData.reviews = contribs.totalPullRequestReviewContributions;
                                     profileData.isExact = true;
-
-                                    // Recalculate total if we have exact numbers (optional, but often API total != scraped total due to private contribs logic)
-                                    // We'll keep the scraped total as "visible total" or just sum these up?
-                                    // Usually scraped total includes private contributions if the user is viewing their own profile, but we are viewing as public.
-                                    // Let's set the total to the sum of these if it's greater than scanned, or just list them separately.
-                                    // Actually, let's just keep the breakdown as the primary value add.
                                 }
                             }
                         } catch (apiErr) {
@@ -229,21 +213,19 @@ Activity Stats:
                         `.trim();
                     }
 
-                    const vectorStore = await getVectorStore();
                     await vectorStore.addDocuments([new Document({
                         pageContent: summaryText,
-                        metadata: { source: source, type: "profile" }
+                        metadata: { source: source, type: "profile", userId: userId }
                     })]);
 
-                    return NextResponse.json({ success: true, chunks: 1, message: "Profile ingested successfully" });
+                    return res.json({ success: true, chunks: 1, message: "Profile ingested successfully" });
 
                 } catch (err: any) {
                     console.error("Profile Scrape Error:", err);
-                    return NextResponse.json({ error: "Failed to scrape profile: " + err.message }, { status: 500 });
+                    return res.status(500).json({ error: "Failed to scrape profile: " + err.message });
                 }
             }
 
-            // Repo Logic
             console.log(`Cloning GitHub Repo: ${source}`);
             try {
                 const { GithubRepoLoader } = await import("@langchain/community/document_loaders/web/github");
@@ -258,42 +240,40 @@ Activity Stats:
                 const docs = await loader.load();
                 console.log(`Loaded ${docs.length} files from GitHub`);
 
-                // Split loaded docs
                 const splitter = new RecursiveCharacterTextSplitter({
                     chunkSize: 1000,
                     chunkOverlap: 200,
                 });
 
                 const splitDocs = await splitter.splitDocuments(docs);
+                // Add userId to all docs
+                splitDocs.forEach(doc => doc.metadata.userId = userId);
                 await vectorStore.addDocuments(splitDocs);
 
-                return NextResponse.json({ success: true, chunks: splitDocs.length });
+                return res.json({ success: true, chunks: splitDocs.length });
 
             } catch (ghError: any) {
                 console.error("GitHub Loader Error:", ghError);
-                return NextResponse.json({ error: "Failed to load GitHub repo: " + ghError.message }, { status: 500 });
+                return res.status(500).json({ error: "Failed to load GitHub repo: " + ghError.message });
             }
         }
 
         // --- Standard Logic ---
         if (!text) {
-            return NextResponse.json({ error: "No text extracted" }, { status: 400 });
+            return res.status(400).json({ error: "No text extracted" });
         }
 
-        // Split text into chunks
         const splitter = new RecursiveCharacterTextSplitter({
             chunkSize: 1000,
             chunkOverlap: 200,
         });
 
-        const docs = await splitter.createDocuments([text], [{ source }]);
-
-        // Add to vector store
+        const docs = await splitter.createDocuments([text], [{ source, userId: userId }]);
         await vectorStore.addDocuments(docs);
 
-        return NextResponse.json({ success: true, chunks: docs.length });
+        return res.json({ success: true, chunks: docs.length });
     } catch (error: any) {
         console.error("Ingestion error:", error);
-        return NextResponse.json({ error: "Failed to ingest data: " + error.message }, { status: 500 });
+        return res.status(500).json({ error: "Failed to ingest data: " + error.message });
     }
 }
