@@ -5,7 +5,6 @@ import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { Send, PlusCircle, Database, Loader2, Paperclip, LogOut, User as UserIcon, Bot, Github } from "lucide-react";
@@ -222,52 +221,53 @@ export function ChatInterface() {
                 handleIngest={handleIngest}
                 handleFileUpload={handleFileUpload}
             />
-            <SidebarInset className="flex flex-col min-h-0 overflow-hidden">
+            <SidebarInset>
                 {/* Dashboard Header */}
-                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-background/50 backdrop-blur-md sticky top-0 z-50">
-                    <div className="flex items-center gap-2 px-4 flex-1">
+                <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+                    <div className="flex items-center gap-2 px-4">
                         <SidebarTrigger className="-ml-1" />
                         <Separator orientation="vertical" className="mr-2 h-4" />
                         <Breadcrumb>
                             <BreadcrumbList>
                                 <BreadcrumbItem className="hidden md:block">
                                     <BreadcrumbLink href="#">
-                                        RAG Agent Dashboard
+                                        RAG Agent
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator className="hidden md:block" />
                                 <BreadcrumbItem>
-                                    <BreadcrumbPage className="font-bold tracking-tight uppercase text-xs">
-                                        {activeView === "chat" ? "AI Chat Workspace" : "Knowledge Repository"}
+                                    <BreadcrumbPage>
+                                        {activeView === "chat" ? "AI Chat" : "Knowledge Base"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
                         </Breadcrumb>
                     </div>
 
-                    <div className="flex items-center gap-4 px-4">
+                    <div className="ml-auto flex items-center gap-2 px-4">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-primary/10 ring-offset-2">
-                                    <Avatar className="h-9 w-9">
+                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                    <Avatar className="h-8 w-8">
                                         <AvatarImage src={`https://ui-avatars.com/api/?name=${user.name || user.email}&background=random`} />
-                                        <AvatarFallback><UserIcon /></AvatarFallback>
+                                        <AvatarFallback><UserIcon className="h-4 w-4" /></AvatarFallback>
                                     </Avatar>
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="w-56" align="end" forceMount>
                                 <DropdownMenuLabel className="font-normal">
                                     <div className="flex flex-col space-y-1">
-                                        <p className="text-sm font-bold leading-none">{user.name || "My Account"}</p>
+                                        <p className="text-sm font-medium leading-none">{user.name || "My Account"}</p>
                                         <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => router.push("/profile")} className="cursor-pointer font-medium">
+                                <DropdownMenuItem onClick={() => router.push("/profile")} className="cursor-pointer">
                                     <UserIcon className="mr-2 h-4 w-4" />
-                                    <span>Profile Settings</span>
+                                    <span>Profile</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={logout} className="text-red-500 focus:text-red-500 cursor-pointer font-medium">
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={logout} className="cursor-pointer">
                                     <LogOut className="mr-2 h-4 w-4" />
                                     <span>Log out</span>
                                 </DropdownMenuItem>
@@ -277,165 +277,147 @@ export function ChatInterface() {
                 </header>
 
                 {/* Main Content Area */}
-                <div className="flex flex-1 flex-col p-4 md:p-6 overflow-hidden min-h-0">
-                    <Card className="flex-1 flex flex-col min-h-0 border-border/40 shadow-sm overflow-hidden bg-card/40">
-                        {activeView === "chat" ? (
-                            <>
-                                <ScrollArea className="flex-1 min-h-0" ref={scrollViewport}>
-                                    <div className="p-4 lg:p-8">
-                                        <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full pb-10">
-                                            {messages.length === 0 && (
-                                                <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-                                                    <div className="p-6 rounded-[2rem] bg-primary/5 mb-6 border border-primary/10">
-                                                        <Bot className="w-16 h-16 text-primary" />
-                                                    </div>
-                                                    <h2 className="text-3xl font-black text-foreground mb-3 tracking-tighter uppercase">AI Chat Workspace</h2>
-                                                    <p className="text-muted-foreground max-w-sm mx-auto text-sm font-medium leading-relaxed">
-                                                        Start a conversation with your research agent. Ensure you have ingested documents for contextual grounding.
-                                                    </p>
+                <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+                    {activeView === "chat" ? (
+                        <div className="flex flex-1 flex-col rounded-xl bg-muted/50">
+                            <ScrollArea className="flex-1" ref={scrollViewport}>
+                                <div className="p-4">
+                                    <div className="flex flex-col gap-4 max-w-3xl mx-auto">
+                                        {messages.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                                                <div className="rounded-full bg-primary/10 p-4 mb-4">
+                                                    <Bot className="h-8 w-8 text-primary" />
                                                 </div>
-                                            )}
-                                            {messages.map((msg, i) => (
-                                                <MessageBubble key={i} {...msg} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                </ScrollArea>
-
-                                <div className="p-4 lg:p-6 border-t bg-background/50 backdrop-blur-md">
-                                    <form onSubmit={handleSubmit} className="flex gap-3 max-w-4xl mx-auto w-full group">
-                                        <Input
-                                            value={input}
-                                            onChange={e => setInput(e.target.value)}
-                                            placeholder="Consult your knowledge base..."
-                                            disabled={isLoading}
-                                            className="flex-1 h-14 px-6 rounded-2xl bg-background/50 border border-border shadow-inner focus-visible:ring-primary/20 focus-visible:ring-offset-0 transition-all text-base"
-                                        />
-                                        <Button
-                                            type="submit"
-                                            disabled={isLoading || !input.trim()}
-                                            className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground shadow-lg hover:shadow-primary/20 hover:scale-[1.05] transition-all active:scale-[0.95]"
-                                        >
-                                            {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
-                                        </Button>
-                                    </form>
-                                </div>
-                            </>
-                        ) : (
-                            <ScrollArea className="flex-1">
-                                <div className="p-6 lg:p-12 max-w-5xl mx-auto w-full flex flex-col gap-10">
-                                    <div className="space-y-4">
-                                        <h2 className="text-4xl font-black tracking-tighter uppercase">Knowledge Repository</h2>
-                                        <p className="text-muted-foreground text-lg">Select a method to feed your agent with specialized knowledge.</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {[
-                                            { id: "file", icon: Paperclip, title: "Documents", desc: "PDF, TXT, or Markdown files" },
-                                            { id: "text", icon: PlusCircle, title: "Raw Text", desc: "Paste snippets or articles" },
-                                            { id: "github", icon: Github, title: "Code", desc: "Import from public GitHub repos" }
-                                        ].map((tab) => (
-                                            <button
-                                                key={tab.id}
-                                                onClick={() => setActiveTab(tab.id as any)}
-                                                className={`p-6 rounded-[2.5rem] border text-left transition-all group ${activeTab === tab.id
-                                                    ? "bg-primary text-primary-foreground shadow-xl shadow-primary/20 border-primary"
-                                                    : "bg-background/40 hover:bg-background/60 border-border hover:border-primary/50"}`}
-                                            >
-                                                <div className={`size-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${activeTab === tab.id ? "bg-white/20" : "bg-primary/5 text-primary"}`}>
-                                                    <tab.icon className="size-6" />
-                                                </div>
-                                                <h3 className="font-bold text-lg mb-1">{tab.title}</h3>
-                                                <p className={`text-xs font-medium ${activeTab === tab.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{tab.desc}</p>
-                                            </button>
+                                                <h2 className="text-xl font-semibold mb-2">AI Chat</h2>
+                                                <p className="text-muted-foreground text-sm max-w-sm">
+                                                    Start a conversation with your AI assistant. Make sure to add documents to your knowledge base first.
+                                                </p>
+                                            </div>
+                                        )}
+                                        {messages.map((msg, i) => (
+                                            <MessageBubble key={i} {...msg} />
                                         ))}
                                     </div>
-
-                                    <Card className="flex-1 bg-background/20 border-dashed border-2 border-border/50 rounded-[3rem] overflow-hidden">
-                                        {activeTab === "file" && (
-                                            <div className="h-full flex flex-col items-center justify-center p-12 text-center group">
-                                                <div
-                                                    className="size-32 rounded-full bg-primary/5 flex items-center justify-center mb-6 border border-primary/10 group-hover:bg-primary/10 transition-colors cursor-pointer relative"
-                                                    onClick={() => document.getElementById('main-file-upload')?.click()}
-                                                >
-                                                    <input
-                                                        type="file"
-                                                        id="main-file-upload"
-                                                        className="hidden"
-                                                        accept=".pdf,.txt,.md"
-                                                        onChange={handleFileUpload}
-                                                        disabled={isIngesting}
-                                                    />
-                                                    {isIngesting ? <Loader2 className="size-12 animate-spin text-primary" /> : <Paperclip className="size-12 text-primary" />}
-                                                </div>
-                                                <h4 className="text-2xl font-bold mb-2">Upload Files</h4>
-                                                <p className="text-muted-foreground max-w-sm mb-6">Drag and drop your files here or click to browse. Supported formats: PDF, TXT, MD.</p>
-                                                <Button
-                                                    size="lg"
-                                                    onClick={() => document.getElementById('main-file-upload')?.click()}
-                                                    disabled={isIngesting}
-                                                    className="px-8 font-bold rounded-2xl"
-                                                >
-                                                    SELECT FILES
-                                                </Button>
-                                            </div>
-                                        )}
-
-                                        {activeTab === "text" && (
-                                            <div className="h-full flex flex-col p-8 gap-6">
-                                                <div className="flex-1">
-                                                    <textarea
-                                                        className="w-full h-full min-h-[300px] rounded-[2rem] bg-background/50 border-none p-8 text-lg focus:ring-2 ring-primary/20 outline-none resize-none shadow-inner"
-                                                        placeholder="Paste your content here..."
-                                                        value={ingestText}
-                                                        onChange={(e) => setIngestText(e.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="flex justify-end">
-                                                    <Button
-                                                        size="lg"
-                                                        className="h-16 px-12 rounded-2xl font-black tracking-widest uppercase shadow-lg shadow-primary/20"
-                                                        onClick={handleIngest}
-                                                        disabled={isIngesting || !ingestText.trim()}
-                                                    >
-                                                        {isIngesting ? <Loader2 className="size-6 animate-spin mr-3" /> : <Database className="size-6 mr-3" />}
-                                                        INGEST TEXT
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {activeTab === "github" && (
-                                            <div className="h-full flex flex-col items-center justify-center p-12 text-center gap-8">
-                                                <div className="size-24 rounded-[2rem] bg-[#24292f] flex items-center justify-center text-white shadow-xl">
-                                                    <Github className="size-12" />
-                                                </div>
-                                                <div className="w-full max-w-md space-y-4">
-                                                    <h4 className="text-2xl font-bold">Import GitHub Repository</h4>
-                                                    <p className="text-muted-foreground mb-6">Enter a public GitHub repository URL to index its entire codebase and documentation.</p>
-                                                    <Input
-                                                        className="h-16 rounded-2xl px-6 text-lg bg-background/50 border-border"
-                                                        placeholder="https://github.com/..."
-                                                        value={ingestText}
-                                                        onChange={(e) => setIngestText(e.target.value)}
-                                                    />
-                                                    <Button
-                                                        size="lg"
-                                                        className="w-full h-16 rounded-2xl font-black tracking-widest uppercase shadow-lg shadow-primary/20"
-                                                        onClick={handleIngest}
-                                                        disabled={isIngesting || !ingestText.startsWith("https://github.com/")}
-                                                    >
-                                                        {isIngesting ? <Loader2 className="size-6 animate-spin mr-3" /> : <Bot className="size-6 mr-3" />}
-                                                        START INDEXING
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </Card>
                                 </div>
                             </ScrollArea>
-                        )}
-                    </Card>
+
+                            <div className="p-4 border-t">
+                                <form onSubmit={handleSubmit} className="flex gap-2 max-w-3xl mx-auto">
+                                    <Input
+                                        value={input}
+                                        onChange={e => setInput(e.target.value)}
+                                        placeholder="Ask something..."
+                                        disabled={isLoading}
+                                        className="flex-1"
+                                    />
+                                    <Button
+                                        type="submit"
+                                        size="icon"
+                                        disabled={isLoading || !input.trim()}
+                                    >
+                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    </Button>
+                                </form>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-1 flex-col gap-4">
+                            <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+                                {[
+                                    { id: "file", icon: Paperclip, title: "Documents", desc: "PDF, TXT, MD files" },
+                                    { id: "text", icon: PlusCircle, title: "Text", desc: "Paste content" },
+                                    { id: "github", icon: Github, title: "GitHub", desc: "Import repos" }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`aspect-video rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors ${activeTab === tab.id
+                                            ? "bg-primary text-primary-foreground"
+                                            : "bg-muted/50 hover:bg-muted"}`}
+                                    >
+                                        <tab.icon className="h-6 w-6" />
+                                        <span className="font-medium">{tab.title}</span>
+                                        <span className={`text-xs ${activeTab === tab.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{tab.desc}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="min-h-[50vh] flex-1 rounded-xl bg-muted/50 p-6">
+                                {activeTab === "file" && (
+                                    <div className="h-full flex flex-col items-center justify-center text-center">
+                                        <div
+                                            className="rounded-full bg-muted p-6 mb-4 cursor-pointer hover:bg-muted/80 transition-colors"
+                                            onClick={() => document.getElementById('main-file-upload')?.click()}
+                                        >
+                                            <input
+                                                type="file"
+                                                id="main-file-upload"
+                                                className="hidden"
+                                                accept=".pdf,.txt,.md"
+                                                onChange={handleFileUpload}
+                                                disabled={isIngesting}
+                                            />
+                                            {isIngesting ? <Loader2 className="h-8 w-8 animate-spin" /> : <Paperclip className="h-8 w-8" />}
+                                        </div>
+                                        <h3 className="font-semibold mb-1">Upload Files</h3>
+                                        <p className="text-muted-foreground text-sm mb-4">Supported: PDF, TXT, MD</p>
+                                        <Button
+                                            onClick={() => document.getElementById('main-file-upload')?.click()}
+                                            disabled={isIngesting}
+                                        >
+                                            Select Files
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {activeTab === "text" && (
+                                    <div className="h-full flex flex-col gap-4">
+                                        <textarea
+                                            className="flex-1 w-full rounded-lg bg-background p-4 text-sm border resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                                            placeholder="Paste your content here..."
+                                            value={ingestText}
+                                            onChange={(e) => setIngestText(e.target.value)}
+                                        />
+                                        <div className="flex justify-end">
+                                            <Button
+                                                onClick={handleIngest}
+                                                disabled={isIngesting || !ingestText.trim()}
+                                            >
+                                                {isIngesting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                                                <Database className="h-4 w-4 mr-2" />
+                                                Ingest Text
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === "github" && (
+                                    <div className="h-full flex flex-col items-center justify-center text-center gap-4">
+                                        <div className="rounded-full bg-[#24292f] p-4 text-white">
+                                            <Github className="h-8 w-8" />
+                                        </div>
+                                        <div className="w-full max-w-md space-y-4">
+                                            <h3 className="font-semibold">Import GitHub Repository</h3>
+                                            <p className="text-muted-foreground text-sm">Enter a public repository URL</p>
+                                            <Input
+                                                placeholder="https://github.com/..."
+                                                value={ingestText}
+                                                onChange={(e) => setIngestText(e.target.value)}
+                                            />
+                                            <Button
+                                                className="w-full"
+                                                onClick={handleIngest}
+                                                disabled={isIngesting || !ingestText.startsWith("https://github.com/")}
+                                            >
+                                                {isIngesting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                                                Start Indexing
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </SidebarInset>
         </SidebarProvider>

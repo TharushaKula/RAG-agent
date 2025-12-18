@@ -2,19 +2,10 @@
 
 import * as React from "react"
 import {
-    BookOpen,
     Bot,
-    Command,
     Database,
-    FileText,
-    LayoutDashboard,
-    Settings,
-    PlusCircle,
-    Paperclip,
-    Loader2,
-    Trash2,
-    Monitor,
-    Github
+    Settings2,
+    SquareTerminal,
 } from "lucide-react"
 
 import {
@@ -25,14 +16,13 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarGroup,
-    SidebarGroupLabel,
-    SidebarGroupContent,
+    SidebarRail,
 } from "@/components/ui/sidebar"
 import { useAuth } from "../../context/AuthContext"
-import { Button } from "@/components/ui/button"
+import { NavMain } from "./nav-main"
+import { NavUser } from "./nav-user"
 
-interface AppSidebarProps {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     activeView: "chat" | "knowledge"
     setActiveView: (view: "chat" | "knowledge") => void
     activeTab: "text" | "file" | "github"
@@ -47,83 +37,58 @@ interface AppSidebarProps {
 export function AppSidebar({
     activeView,
     setActiveView,
-    activeTab,
-    setActiveTab,
-    ingestText,
-    setIngestText,
-    isIngesting,
-    handleIngest,
-    handleFileUpload
+    activeTab: _activeTab,
+    setActiveTab: _setActiveTab,
+    ingestText: _ingestText,
+    setIngestText: _setIngestText,
+    isIngesting: _isIngesting,
+    handleIngest: _handleIngest,
+    handleFileUpload: _handleFileUpload,
+    ...props
 }: AppSidebarProps) {
     const { user } = useAuth()
 
+    const navItems = [
+        {
+            title: "AI Chat",
+            icon: SquareTerminal,
+            isActive: activeView === "chat",
+            onClick: () => setActiveView("chat"),
+        },
+        {
+            title: "Knowledge Base",
+            icon: Database,
+            isActive: activeView === "knowledge",
+            onClick: () => setActiveView("knowledge"),
+        },
+    ]
+
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" {...props}>
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <a href="#">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                                     <Bot className="size-4" />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="font-semibold">RAG Agent</span>
-                                    <span className="text-xs text-muted-foreground font-medium">Enterprise AI</span>
+                                    <span className="truncate font-semibold">RAG Agent</span>
+                                    <span className="truncate text-xs">Enterprise</span>
                                 </div>
                             </a>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
-
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
-                    <SidebarMenu>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                isActive={activeView === "chat"}
-                                onClick={() => setActiveView("chat")}
-                            >
-                                <Bot />
-                                <span>AI Chat</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                isActive={activeView === "knowledge"}
-                                onClick={() => setActiveView("knowledge")}
-                            >
-                                <Database />
-                                <span>Knowledge Base</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                </SidebarGroup>
-
-                <SidebarGroup className="mt-auto">
-                    <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
-                        System Status
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <div className="px-2 py-1.5 flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                            <div className="size-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                            <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground group-data-[collapsible=icon]:hidden">Live Synced</span>
-                        </div>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                <NavMain items={navItems} />
             </SidebarContent>
-
             <SidebarFooter>
-                <div className="p-2 bg-primary/5 rounded-lg border border-primary/10 group-data-[collapsible=icon]:hidden">
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-black tracking-tighter">
-                        <div className="size-1.5 rounded-full bg-green-500 animate-pulse" />
-                        DATABASE ONLINE
-                    </div>
-                    <p className="text-[9px] text-muted-foreground/60 mt-1 leading-none">Connected to MongoDB Atlas clusters with high availability.</p>
-                </div>
+                {user && <NavUser user={{ name: user.name || "User", email: user.email, avatar: `https://ui-avatars.com/api/?name=${user.name || user.email}&background=random` }} />}
             </SidebarFooter>
+            <SidebarRail />
         </Sidebar>
     )
 }
