@@ -8,9 +8,10 @@ interface User {
     name?: string;
     email: string;
     onboardingCompleted?: boolean;
-    interests?: string[];
-    skillLevel?: string;
-    goals?: string;
+    age?: number;
+    learningStyles?: string[];
+    timeAvailability?: string;
+    learningGoals?: string[];
 }
 
 interface AuthContextType {

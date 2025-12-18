@@ -8,9 +8,10 @@ export interface User {
     passwordHash: string;
     createdAt: Date;
     onboardingCompleted?: boolean;
-    interests?: string[];
-    skillLevel?: string;
-    goals?: string;
+    age?: number;
+    learningStyles?: string[];
+    timeAvailability?: string;
+    learningGoals?: string[];
 }
 
 export const getUsersCollection = async () => {

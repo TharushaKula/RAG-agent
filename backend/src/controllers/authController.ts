@@ -85,9 +85,10 @@ export const login = async (req: Request, res: Response) => {
                 name: user.name,
                 email,
                 onboardingCompleted: user.onboardingCompleted || false,
-                interests: user.interests || [],
-                skillLevel: user.skillLevel || "",
-                goals: user.goals || ""
+                age: user.age,
+                learningStyles: user.learningStyles || [],
+                timeAvailability: user.timeAvailability || "",
+                learningGoals: user.learningGoals || []
             }
         });
 
@@ -100,7 +101,7 @@ export const login = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
-        const { interests, skillLevel, goals } = req.body;
+        const { age, learningStyles, timeAvailability, learningGoals } = req.body;
 
         const users = await getUsersCollection();
         const { ObjectId } = await import("mongodb");
@@ -109,9 +110,10 @@ export const updateProfile = async (req: Request, res: Response) => {
             { _id: new ObjectId(userId) },
             {
                 $set: {
-                    interests,
-                    skillLevel,
-                    goals,
+                    age,
+                    learningStyles,
+                    timeAvailability,
+                    learningGoals,
                     onboardingCompleted: true
                 }
             }
