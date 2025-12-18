@@ -38,6 +38,8 @@ export default function LoginPage() {
         }
     };
 
+    const [showCard, setShowCard] = useState(true);
+
     return (
         <div className="flex min-h-screen w-full items-center justify-center p-4 bg-gradient-to-br from-violet-600 via-pink-500 to-orange-400 font-sans">
             {/* Main Glass Card */}
@@ -101,6 +103,13 @@ export default function LoginPage() {
                         >
                             {isLoading ? <Loader2 className="animate-spin h-5 w-5 mx-auto text-black" /> : "Sign in"}
                         </button>
+
+                        <div className="text-center text-sm text-white/50">
+                            Don&apos;t have an account?{" "}
+                            <Link href="/signup" className="text-white hover:underline font-medium">
+                                Sign up
+                            </Link>
+                        </div>
                     </form>
 
                     <div className="mt-8 flex justify-center gap-4">
@@ -133,54 +142,74 @@ export default function LoginPage() {
 
                         <div className="relative z-10">
                             <h2 className="text-5xl font-bold text-white leading-[1.1]">
-                                What&apos;s our<br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">Jobseekers Said.</span>
+                                From Learning  <br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60"> to Leading</span>
                             </h2>
                             <Quote className="text-white h-10 w-10 mt-8 mb-4 fill-white" />
                             <p className="text-lg text-white/80 leading-relaxed max-w-md">
-                                &ldquo;Search and find your dream job is now easier than ever. Just browse a job and apply if you need to.&rdquo;
+                                &ldquo; Finally, a platform that understands my skill level. I stopped wasting time on tutorials that were too easy &rdquo;
                             </p>
 
                             <div className="mt-8">
-                                <h4 className="text-white font-bold text-xl">Mas Parjono</h4>
-                                <p className="text-white/60 text-sm">UI Designer at Google</p>
+                                <h4 className="text-white font-bold text-xl">Tharusha Kulasinghe</h4>
+                                <p className="text-white/60 text-sm">Student at IIT</p>
                             </div>
 
                             <div className="flex gap-4 mt-8">
-                                <button className="h-12 w-12 rounded-xl bg-[#FF9F89] flex items-center justify-center text-black hover:bg-[#ff8f75] transition-colors">
+                                <button className="h-12 w-12 rounded-xl bg-[#FF9F89] flex items-center justify-center text-black hover:bg-[#ff8f75] transition-colors opacity-50 cursor-not-allowed">
                                     <ArrowLeft className="w-6 h-6" />
                                 </button>
-                                <button className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors">
-                                    <ArrowRight className="w-6 h-6" />
-                                </button>
+                                <Link href="/signup">
+                                    <button className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors">
+                                        <ArrowRight className="w-6 h-6" />
+                                    </button>
+                                </Link>
                             </div>
                         </div>
+
+                        {/* Floating Card Toggle */}
+                        {!showCard && (
+                            <button
+                                onClick={() => setShowCard(true)}
+                                className="absolute bottom-8 right-8 bg-white/10 hover:bg-white/20 p-3 rounded-full text-white backdrop-blur-md transition-all hover:scale-110 z-20 group"
+                                title="Show details"
+                            >
+                                <Star className="w-6 h-6 fill-white text-white group-hover:rotate-180 transition-transform duration-500" />
+                            </button>
+                        )}
 
                         {/* Floating Card */}
-                        <div className="absolute -bottom-2 -right-2 bg-white rounded-tl-[2.5rem] p-8 w-[320px] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-700">
-                            <div className="absolute -top-10 right-0 w-10 h-10 bg-transparent shadow-[15px_15px_0_0_#fff] rounded-br-[20px]" />
-                            <div className="absolute bottom-0 -left-10 w-10 h-10 bg-transparent shadow-[15px_15px_0_0_#fff] rounded-br-[20px]" />
+                        {showCard && (
+                            <div className="absolute -bottom-2 -right-2 bg-white rounded-tl-[2.5rem] p-8 w-[320px] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-500 z-10">
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setShowCard(false)}
+                                    className="absolute top-6 right-6 text-gray-400 hover:text-black transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                </button>
 
-                            <h3 className="text-black font-bold text-xl mb-2">Get your right job and right place apply now</h3>
-                            <p className="text-gray-500 text-xs mb-4">Be among the first founders to experience the easiest way to start run a business.</p>
+                                <div className="absolute -top-10 right-0 w-10 h-10 bg-transparent shadow-[15px_15px_0_0_#fff] rounded-br-[20px]" />
+                                <div className="absolute bottom-0 -left-10 w-10 h-10 bg-transparent shadow-[15px_15px_0_0_#fff] rounded-br-[20px]" />
 
-                            <div className="flex -space-x-3">
-                                <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=A`} alt="User" /></div>
-                                <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=B`} alt="User" /></div>
-                                <div className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=C`} alt="User" /></div>
-                                <div className="w-8 h-8 rounded-full bg-black text-white border-2 border-white flex items-center justify-center text-[10px] font-bold">+2</div>
+                                <h3 className="text-black font-bold text-xl mb-2 pr-4">Get your right job and right place apply now</h3>
+                                <p className="text-gray-500 text-xs mb-4">Be among the first founders to experience the easiest way to start run a business.</p>
+
+                                <div className="flex -space-x-3">
+                                    <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=A`} alt="User" /></div>
+                                    <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=B`} alt="User" /></div>
+                                    <div className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white overflow-hidden"><img src={`https://ui-avatars.com/api/?name=C`} alt="User" /></div>
+                                    <div className="w-8 h-8 rounded-full bg-black text-white border-2 border-white flex items-center justify-center text-[10px] font-bold">+2</div>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                     </div>
                 </div>
 
             </div>
 
-            {/* Don't have an account link - Absolute bottom or integrated? Integrated looks better inside or just below */}
-            <div className="absolute bottom-6 text-white/50 text-sm">
-                Don&apos;t have an account? <Link href="/signup" className="text-white hover:underline">Sign up</Link>
-            </div>
+
         </div>
     );
 }
