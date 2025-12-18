@@ -26,6 +26,7 @@ export const signup = async (req: Request, res: Response) => {
             email,
             passwordHash,
             createdAt: new Date(),
+            onboardingCompleted: false
         };
 
         const result = await users.insertOne(newUser);
@@ -36,7 +37,12 @@ export const signup = async (req: Request, res: Response) => {
         return res.status(201).json({
             success: true,
             token,
-            user: { id: result.insertedId, name, email }
+            user: {
+                id: result.insertedId,
+                name,
+                email,
+                onboardingCompleted: false
+            }
         });
 
     } catch (error: any) {
@@ -74,11 +80,47 @@ export const login = async (req: Request, res: Response) => {
         return res.json({
             success: true,
             token,
-            user: { id: user._id, name: user.name, email }
+            user: {
+                id: user._id,
+                name: user.name,
+                email,
+                onboardingCompleted: user.onboardingCompleted || false,
+                interests: user.interests || [],
+                skillLevel: user.skillLevel || "",
+                goals: user.goals || ""
+            }
         });
 
     } catch (error: any) {
         console.error("Login error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const updateProfile = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.userId;
+        const { interests, skillLevel, goals } = req.body;
+
+        const users = await getUsersCollection();
+        const { ObjectId } = await import("mongodb");
+
+        await users.updateOne(
+            { _id: new ObjectId(userId) },
+            {
+                $set: {
+                    interests,
+                    skillLevel,
+                    goals,
+                    onboardingCompleted: true
+                }
+            }
+        );
+
+        return res.json({ success: true, message: "Profile updated successfully" });
+
+    } catch (error: any) {
+        console.error("Update profile error:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
 };

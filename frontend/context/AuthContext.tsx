@@ -7,6 +7,10 @@ interface User {
     id: string;
     name?: string;
     email: string;
+    onboardingCompleted?: boolean;
+    interests?: string[];
+    skillLevel?: string;
+    goals?: string;
 }
 
 interface AuthContextType {
@@ -14,6 +18,7 @@ interface AuthContextType {
     token: string | null;
     login: (token: string, user: User) => void;
     logout: () => void;
+    updateUser: (data: Partial<User>) => void;
     isLoading: boolean;
 }
 
@@ -40,7 +45,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(newUser);
         localStorage.setItem("auth_token", newToken);
         localStorage.setItem("auth_user", JSON.stringify(newUser));
-        router.push("/");
+
+        if (!newUser.onboardingCompleted) {
+            router.push("/onboarding");
+        } else {
+            router.push("/");
+        }
     };
 
     const logout = () => {
@@ -51,8 +61,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         router.push("/login");
     };
 
+    const updateUser = (data: Partial<User>) => {
+        if (!user) return;
+        const updatedUser = { ...user, ...data };
+        setUser(updatedUser);
+        localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+    };
+
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateUser, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

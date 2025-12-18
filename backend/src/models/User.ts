@@ -7,6 +7,10 @@ export interface User {
     email: string;
     passwordHash: string;
     createdAt: Date;
+    onboardingCompleted?: boolean;
+    interests?: string[];
+    skillLevel?: string;
+    goals?: string;
 }
 
 export const getUsersCollection = async () => {

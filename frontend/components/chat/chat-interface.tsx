@@ -47,8 +47,12 @@ export function ChatInterface() {
     const scrollViewport = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.push("/login");
+        if (!authLoading) {
+            if (!user) {
+                router.push("/login");
+            } else if (!user.onboardingCompleted) {
+                router.push("/onboarding");
+            }
         }
     }, [user, authLoading, router]);
 
