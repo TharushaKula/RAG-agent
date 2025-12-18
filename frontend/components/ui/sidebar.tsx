@@ -208,8 +208,11 @@ const Sidebar = React.forwardRef<
         return (
             <div
                 ref={ref}
-                className="group peer hidden md:block text-sidebar-foreground duration-200 transition-[width] ease-linear w-[--sidebar-width] data-[state=collapsed]:w-[--sidebar-width-icon]"
+                className="group peer hidden md:block text-sidebar-foreground duration-200 transition-[width] ease-linear"
                 data-state={state}
+                style={{
+                    width: state === "expanded" ? SIDEBAR_WIDTH : SIDEBAR_WIDTH_ICON
+                } as React.CSSProperties}
                 data-collapsible={state === "collapsed" ? collapsible : ""}
                 data-variant={variant}
                 data-side={side}
@@ -315,8 +318,8 @@ const SidebarInset = React.forwardRef<
         <main
             ref={ref}
             className={cn(
-                "relative flex min-h-svh flex-1 flex-col bg-background",
-                "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow transition-all duration-200",
+                "relative flex min-h-svh flex-1 flex-col bg-background transition-all duration-200",
+                "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[state=expanded]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
                 className
             )}
             {...props}
