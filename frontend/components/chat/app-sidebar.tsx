@@ -6,6 +6,7 @@ import {
     Database,
     Settings2,
     SquareTerminal,
+    Github,
 } from "lucide-react"
 
 import {
@@ -23,8 +24,8 @@ import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    activeView: "chat" | "knowledge"
-    setActiveView: (view: "chat" | "knowledge") => void
+    activeView: "chat" | "knowledge" | "github-agent"
+    setActiveView: (view: "chat" | "knowledge" | "github-agent") => void
     activeTab: "text" | "file" | "github"
     setActiveTab: (tab: "text" | "file" | "github") => void
     ingestText: string
@@ -60,6 +61,12 @@ export function AppSidebar({
             icon: Database,
             isActive: activeView === "knowledge",
             onClick: () => setActiveView("knowledge"),
+        },
+        {
+            title: "GitHub Agent",
+            icon: Github,
+            isActive: activeView === "github-agent" as any,
+            onClick: () => setActiveView("github-agent" as any),
         },
     ]
 
