@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
-import { Send, PlusCircle, Database, Loader2, Paperclip, LogOut, User as UserIcon, Bot, Github } from "lucide-react";
+import { Send, PlusCircle, Database, Loader2, Paperclip, LogOut, User as UserIcon, Bot, Github, Activity, X } from "lucide-react";
 import { toast } from "sonner";
 import {
     DropdownMenu,
@@ -33,7 +33,10 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-
+import { GitHubAgentUI } from "../github-agent/GitHubAgentUI";
+import { LiveView } from "../github-agent/LiveView";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Source {
     source: string;
@@ -57,6 +60,19 @@ export function ChatInterface() {
     // Ingestion state
     const [ingestText, setIngestText] = useState("");
     const [isIngesting, setIsIngesting] = useState(false);
+
+    // GitHub Agent State
+    const [isAgentAnalyzing, setIsAgentAnalyzing] = useState(false);
+    const [showLivePanel, setShowLivePanel] = useState(false);
+    const [liveFrame, setLiveFrame] = useState<string | null>(null);
+    const [liveStatus, setLiveStatus] = useState("Idle");
+
+    // Trigger panel when analysis starts
+    useEffect(() => {
+        if (isAgentAnalyzing) {
+            setShowLivePanel(true);
+        }
+    }, [isAgentAnalyzing]);
 
     const scrollViewport = useRef<HTMLDivElement>(null);
 
@@ -203,7 +219,7 @@ export function ChatInterface() {
     };
 
     const [activeTab, setActiveTab] = useState<"text" | "file" | "github">("file");
-    const [activeView, setActiveView] = useState<"chat" | "knowledge">("chat");
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent">("chat");
 
     if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
     if (!user) return null; // Redirect handled in useEffect
@@ -237,7 +253,7 @@ export function ChatInterface() {
                                 <BreadcrumbSeparator className="hidden md:block" />
                                 <BreadcrumbItem>
                                     <BreadcrumbPage>
-                                        {activeView === "chat" ? "AI Chat" : "Knowledge Base"}
+                                        {activeView === "chat" ? "AI Chat" : activeView === "knowledge" ? "Knowledge Base" : "GitHub Explorer Agent"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -320,7 +336,7 @@ export function ChatInterface() {
                                 </form>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeView === "knowledge" ? (
                         <div className="flex flex-1 flex-col gap-4">
                             <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                                 {[
@@ -416,6 +432,52 @@ export function ChatInterface() {
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-1 overflow-hidden relative">
+                            <div className="flex-1 overflow-y-auto p-4">
+                                <GitHubAgentUI
+                                    onAnalysisStatusChange={setIsAgentAnalyzing}
+                                    setLiveFrame={setLiveFrame}
+                                    setLiveStatus={setLiveStatus}
+                                />
+                            </div>
+
+                            {/* Sliding Live Agent Vision Panel */}
+                            <AnimatePresence>
+                                {showLivePanel && (
+                                    <motion.div
+                                        initial={{ x: "100%" }}
+                                        animate={{ x: 0 }}
+                                        exit={{ x: "100%" }}
+                                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                        className="absolute right-0 top-0 bottom-0 w-[800px] bg-black/90 backdrop-blur-xl border-l border-white/10 shadow-2xl z-50 flex flex-col"
+                                    >
+                                        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                                            <div className="flex items-center gap-2">
+                                                <Activity className="w-4 h-4 text-purple-400" />
+                                                <span className="text-sm font-medium text-white/80">Agent Vision</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Badge variant="outline" className={`text-[10px] uppercase tracking-widest ${isAgentAnalyzing ? 'border-purple-500/30 text-purple-400 bg-purple-500/5' : 'border-white/10 text-white/40'}`}>
+                                                    {isAgentAnalyzing ? 'Active Stream' : 'Analysis Idle'}
+                                                </Badge>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-full hover:bg-white/10 text-white/40 hover:text-white"
+                                                    onClick={() => setShowLivePanel(false)}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 p-4 overflow-hidden relative">
+                                            <LiveView frame={liveFrame} status={liveStatus} />
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     )}
                 </div>
