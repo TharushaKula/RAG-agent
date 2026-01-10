@@ -237,7 +237,7 @@ export function ChatInterface() {
                 handleIngest={handleIngest}
                 handleFileUpload={handleFileUpload}
             />
-            <SidebarInset>
+            <SidebarInset className="bg-transparent text-white">
                 {/* Dashboard Header */}
                 <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
                     <div className="flex items-center gap-2 px-4">
@@ -295,7 +295,7 @@ export function ChatInterface() {
                 {/* Main Content Area */}
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
                     {activeView === "chat" ? (
-                        <div className="flex flex-1 flex-col rounded-xl bg-muted/50">
+                        <div className="flex flex-1 flex-col rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl overflow-hidden text-white">
                             <ScrollArea className="flex-1" ref={scrollViewport}>
                                 <div className="p-4">
                                     <div className="flex flex-col gap-4 max-w-3xl mx-auto">
@@ -324,7 +324,7 @@ export function ChatInterface() {
                                         onChange={e => setInput(e.target.value)}
                                         placeholder="Ask something..."
                                         disabled={isLoading}
-                                        className="flex-1"
+                                        className="flex-1 "
                                     />
                                     <Button
                                         type="submit"
@@ -349,7 +349,7 @@ export function ChatInterface() {
                                         onClick={() => setActiveTab(tab.id as any)}
                                         className={`aspect-video rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors ${activeTab === tab.id
                                             ? "bg-primary text-primary-foreground"
-                                            : "bg-muted/50 hover:bg-muted"}`}
+                                            : "bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/5"}`}
                                     >
                                         <tab.icon className="h-6 w-6" />
                                         <span className="font-medium">{tab.title}</span>
@@ -358,7 +358,7 @@ export function ChatInterface() {
                                 ))}
                             </div>
 
-                            <div className="min-h-[50vh] flex-1 rounded-xl bg-muted/50 p-6">
+                            <div className="min-h-[50vh] flex-1 rounded-xl bg-black/20 backdrop-blur-md border border-white/10 p-6">
                                 {activeTab === "file" && (
                                     <div className="h-full flex flex-col items-center justify-center text-center">
                                         <div
@@ -434,7 +434,7 @@ export function ChatInterface() {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-1 overflow-hidden relative">
+                        <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <div className="flex-1 overflow-y-auto p-4">
                                 <GitHubAgentUI
                                     onAnalysisStatusChange={setIsAgentAnalyzing}

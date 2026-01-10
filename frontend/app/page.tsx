@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 export default function Home() {
   return (
-    <main className="min-h-screen w-full">
+    <main className="dark min-h-screen w-full bg-background text-foreground">
       <ChatInterface />
       <Toaster />
     </main>
