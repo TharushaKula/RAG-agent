@@ -38,20 +38,18 @@ export async function getRetrieverForUser(userId: string, filterSources?: string
     const vectorStore = await getVectorStore();
 
     const filter: any = {
-        preFilter: {
-            "metadata.userId": {
-                $eq: userId
-            }
+        "userId": {
+            $eq: userId
         }
     };
 
     if (filterSources && filterSources.length > 0) {
-        filter.preFilter["metadata.source"] = {
+        filter["source"] = {
             $in: filterSources
         };
     }
 
-    console.log("🛡️ RAG Retriever Filter:", JSON.stringify(filter, null, 2));
+    console.log("🛡️ RAG Retriever Filter (MQL):", JSON.stringify(filter, null, 2));
 
     return vectorStore.asRetriever({
         filter: filter,

@@ -32,15 +32,15 @@ async function setupIndex() {
                     },
                     {
                         type: "filter",
-                        path: "metadata.userId"
+                        path: "userId"
                     },
                     {
                         type: "filter",
-                        path: "metadata.source"
+                        path: "source"
                     },
                     {
                         type: "filter",
-                        path: "metadata.type"
+                        path: "type"
                     }
                 ]
             }
