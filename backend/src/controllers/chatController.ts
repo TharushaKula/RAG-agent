@@ -12,7 +12,7 @@ export const chat = async (req: Request, res: Response) => {
         }
         const userId = (req as any).user.userId;
 
-        const { messages } = req.body;
+        const { messages, activeSources } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).send("No messages provided");
         }
@@ -21,10 +21,16 @@ export const chat = async (req: Request, res: Response) => {
         const question = lastMessage.content;
 
         // 1. Retrieve context
-        const retriever = await getRetrieverForUser(userId);
+        console.log(`🔎 Chat Request: User ${userId}, Sources:`, activeSources);
+        const retriever = await getRetrieverForUser(userId, activeSources);
         const contextDocs = await retriever.invoke(question);
 
         console.log(`🔍 Retrieved ${contextDocs.length} documents for query: "${question}"`);
+        if (contextDocs.length > 0) {
+            console.log("📄 Top Doc Source:", contextDocs[0].metadata.source);
+        } else {
+            console.warn("⚠️ No documents retrieved!");
+        }
         if (contextDocs.length > 0) {
             console.log("📄 First doc source:", contextDocs[0].metadata.source);
             console.log("📄 First doc preview:", contextDocs[0].pageContent.slice(0, 100));

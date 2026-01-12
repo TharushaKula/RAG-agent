@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     SidebarProvider,
     SidebarTrigger,
     SidebarInset,
@@ -57,10 +64,55 @@ export function ChatInterface() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer">("chat");
 
     // Ingestion state
     const [ingestText, setIngestText] = useState("");
     const [isIngesting, setIsIngesting] = useState(false);
+
+    // Context Selection State
+    const [availableFiles, setAvailableFiles] = useState<{ cv: string[], jd: string[] }>({ cv: [], jd: [] });
+    const [selectedCV, setSelectedCV] = useState<string>("");
+    const [selectedJD, setSelectedJD] = useState<string>("");
+
+    // Fetch available files
+    const fetchFiles = async () => {
+        if (!token) return;
+        try {
+            console.log("🔄 Fetching user files...");
+            const res = await fetch("/api/cv/files", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                console.log("✅ Files fetched:", data);
+                setAvailableFiles(data);
+                // Auto-select first available if not selected
+                if (data.cv.length > 0 && !selectedCV) {
+                    console.log("🔹 Auto-selecting CV:", data.cv[0]);
+                    setSelectedCV(data.cv[0]);
+                }
+                if (data.jd.length > 0 && !selectedJD) {
+                    console.log("🔹 Auto-selecting JD:", data.jd[0]);
+                    setSelectedJD(data.jd[0]);
+                }
+            } else {
+                console.error("❌ Failed to fetch files, status:", res.status);
+            }
+        } catch (err) {
+            console.error("❌ Failed to fetch files", err);
+        }
+    };
+
+    useEffect(() => {
+        if (activeView === "cv-analyzer" || activeView === "chat") {
+            fetchFiles();
+        }
+    }, [activeView, token]);
+
+    // Send active sources logic needs to be updated too? 
+    // Wait, the handleSubmit logic checked `if (activeView === "cv-analyzer")`.
+    // I need to update that too.
 
     // GitHub Agent State
     const [isAgentAnalyzing, setIsAgentAnalyzing] = useState(false);
@@ -164,13 +216,23 @@ export function ChatInterface() {
         setIsLoading(true);
 
         try {
+            const activeSources = [];
+            // Send selected context if in CV Analyzer OR Chat view
+            if (activeView === "cv-analyzer" || activeView === "chat") {
+                if (selectedCV) activeSources.push(selectedCV);
+                if (selectedJD) activeSources.push(selectedJD);
+            }
+
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ messages: [...messages, userMsg] }),
+                body: JSON.stringify({
+                    messages: [...messages, userMsg],
+                    activeSources: activeSources.length > 0 ? activeSources : undefined
+                }),
             });
 
             if (!res.ok) throw new Error(res.statusText);
@@ -220,7 +282,6 @@ export function ChatInterface() {
     };
 
     const [activeTab, setActiveTab] = useState<"text" | "file" | "github">("file");
-    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer">("chat");
 
     if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
     if (!user) return null; // Redirect handled in useEffect
@@ -262,6 +323,34 @@ export function ChatInterface() {
                     </div>
 
                     <div className="ml-auto flex items-center gap-2 px-4">
+                        {(activeView === "cv-analyzer" || activeView === "chat") && (
+                            <div className="flex items-center gap-2 mr-2">
+                                <Select value={selectedCV} onValueChange={setSelectedCV}>
+                                    <SelectTrigger className="w-[180px] h-8 text-xs bg-white/5 border-white/10 text-white">
+                                        <SelectValue placeholder="Select CV" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-black border-white/20 text-white">
+                                        <SelectItem value="placeholder" disabled className="text-muted-foreground">Select your CV</SelectItem>
+                                        {availableFiles.cv.map((file) => (
+                                            <SelectItem key={file} value={file} className="text-white focus:bg-white/10">{file}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select value={selectedJD} onValueChange={setSelectedJD}>
+                                    <SelectTrigger className="w-[180px] h-8 text-xs bg-white/5 border-white/10 text-white">
+                                        <SelectValue placeholder="Select JD" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-black border-white/20 text-white">
+                                        <SelectItem value="placeholder" disabled className="text-muted-foreground">Select Job Description</SelectItem>
+                                        {availableFiles.jd.map((file) => (
+                                            <SelectItem key={file} value={file} className="text-white focus:bg-white/10">{file}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -436,7 +525,7 @@ export function ChatInterface() {
                         </div>
                     ) : activeView === "cv-analyzer" ? (
                         <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
-                            <CVAnalyzer />
+                            <CVAnalyzer onUploadComplete={fetchFiles} />
                         </div>
                     ) : (
                         <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">

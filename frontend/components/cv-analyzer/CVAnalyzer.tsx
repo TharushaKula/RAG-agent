@@ -11,7 +11,11 @@ import { Label } from "@/components/ui/label";
 import { FileText, Upload, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export function CVAnalyzer() {
+interface CVAnalyzerProps {
+    onUploadComplete?: () => void;
+}
+
+export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
     const { token } = useAuth();
     const [cvFile, setCvFile] = useState<File | null>(null);
     const [jdFile, setJdFile] = useState<File | null>(null);
@@ -73,6 +77,7 @@ export function CVAnalyzer() {
 
             toast.success("CV and Job Description uploaded successfully!");
             setUploadStatus("success");
+            if (onUploadComplete) onUploadComplete();
             // Optional: Reset form or redirect
         } catch (error: any) {
             console.error("Analysis Error:", error);

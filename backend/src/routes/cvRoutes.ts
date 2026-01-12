@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { uploadCVAndJD } from "../controllers/cvController";
+import { uploadCVAndJD, getUserFiles } from "../controllers/cvController";
 import multer from "multer";
 import { authenticateToken } from "../middleware/authMiddleware";
 
@@ -12,5 +12,7 @@ router.post(
     upload.fields([{ name: 'cv', maxCount: 1 }, { name: 'jdFile', maxCount: 1 }]),
     uploadCVAndJD
 );
+
+router.get("/files", authenticateToken, getUserFiles);
 
 export default router;
