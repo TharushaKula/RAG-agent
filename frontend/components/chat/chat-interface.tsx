@@ -37,6 +37,7 @@ import { GitHubAgentUI } from "../github-agent/GitHubAgentUI";
 import { LiveView } from "../github-agent/LiveView";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
+import { CVAnalyzer } from "../cv-analyzer/CVAnalyzer";
 
 interface Source {
     source: string;
@@ -219,7 +220,7 @@ export function ChatInterface() {
     };
 
     const [activeTab, setActiveTab] = useState<"text" | "file" | "github">("file");
-    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent">("chat");
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer">("chat");
 
     if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
     if (!user) return null; // Redirect handled in useEffect
@@ -253,7 +254,7 @@ export function ChatInterface() {
                                 <BreadcrumbSeparator className="hidden md:block" />
                                 <BreadcrumbItem>
                                     <BreadcrumbPage>
-                                        {activeView === "chat" ? "AI Chat" : activeView === "knowledge" ? "Knowledge Base" : "GitHub Explorer Agent"}
+                                        {activeView === "chat" ? "AI Chat" : activeView === "knowledge" ? "Knowledge Base" : activeView === "cv-analyzer" ? "CV Analyzer" : "GitHub Explorer Agent"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -433,6 +434,10 @@ export function ChatInterface() {
                                 )}
                             </div>
                         </div>
+                    ) : activeView === "cv-analyzer" ? (
+                        <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
+                            <CVAnalyzer />
+                        </div>
                     ) : (
                         <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <div className="flex-1 overflow-y-auto p-4">
@@ -481,7 +486,7 @@ export function ChatInterface() {
                         </div>
                     )}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </SidebarInset >
+        </SidebarProvider >
     );
 }

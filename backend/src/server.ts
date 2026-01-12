@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { connectDB } from "./config/db";
 import chatRoutes from "./routes/chatRoutes";
 import ingestRoutes from "./routes/ingestRoutes";
+import cvRoutes from "./routes/cvRoutes";
 import { Server } from "socket.io";
 import http from "http";
 import { GitHubAgentService } from "./services/GitHubAgentService";
@@ -34,6 +35,7 @@ import authRoutes from "./routes/authRoutes";
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/ingest", ingestRoutes);
+app.use("/api/cv", cvRoutes);
 
 app.get("/", (req, res) => {
     res.send("RAG Agent Backend Running");
