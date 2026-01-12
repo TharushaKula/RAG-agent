@@ -31,7 +31,11 @@ export const chat = async (req: Request, res: Response) => {
         }
 
         // Combine docs for the LLM prompt
-        const context = contextDocs.map((doc: any) => doc.pageContent).join("\n\n");
+        const context = contextDocs.map((doc: any) => {
+            const sourceType = doc.metadata.type ? `[${doc.metadata.type.toUpperCase()}]` : "[DOCUMENT]";
+            const sourceName = doc.metadata.source ? `(Source: ${doc.metadata.source})` : "";
+            return `${sourceType} ${sourceName}\n${doc.pageContent}`;
+        }).join("\n\n---\n\n");
 
         // --- FIX: SAFE SOURCE HEADER ---
         const validSources = contextDocs.map((doc: any) => ({
@@ -52,8 +56,17 @@ export const chat = async (req: Request, res: Response) => {
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",
-                `You are a helpful assistant. Use the following context to answer the user's question. 
-        If the answer is not in the context, say so.
+                `You are a helpful AI career assistant. You are provided with context documents that may include a User's CV and a Job Description (JD).
+        
+        The context format is:
+        [CV] ... content ...
+        [JD] ... content ...
+        
+        Instructions:
+        1. If the user asks about skill gaps or improvements, compare the skills found in the [CV] sections against the requirements in the [JD] sections.
+        2. Identify missing skills or areas where the user's experience (CV) doesn't fully meet the job requirements (JD).
+        3. Be encouraging but specific.
+        4. If the answer is not in the context, say so.
         
         Context:
         {context}`,
