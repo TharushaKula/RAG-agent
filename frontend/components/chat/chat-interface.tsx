@@ -45,6 +45,8 @@ import { LiveView } from "../github-agent/LiveView";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { CVAnalyzer } from "../cv-analyzer/CVAnalyzer";
+import { IndustryInfo } from "@/components/industry/IndustryInfo";
+
 
 interface Source {
     source: string;
@@ -64,7 +66,7 @@ export function ChatInterface() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer">("chat");
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info">("chat");
 
     // Ingestion state
     const [ingestText, setIngestText] = useState("");
@@ -315,7 +317,7 @@ export function ChatInterface() {
                                 <BreadcrumbSeparator className="hidden md:block" />
                                 <BreadcrumbItem>
                                     <BreadcrumbPage>
-                                        {activeView === "chat" ? "AI Chat" : activeView === "knowledge" ? "Knowledge Base" : activeView === "cv-analyzer" ? "CV Analyzer" : "GitHub Explorer Agent"}
+                                        {activeView === "chat" ? "AI Chat" : activeView === "knowledge" ? "Knowledge Base" : activeView === "cv-analyzer" ? "CV Analyzer" : activeView === "industry-info" ? "Industry Info" : "GitHub Explorer Agent"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -332,7 +334,7 @@ export function ChatInterface() {
                                     <SelectContent className="bg-black border-white/20 text-white">
                                         <SelectItem value="placeholder" disabled className="text-muted-foreground">Select your CV</SelectItem>
                                         {availableFiles.cv.map((file) => (
-                                            <SelectItem key={file} value={file} className="text-white focus:bg-white/10">{file}</SelectItem>
+                                            <SelectItem key={file} value={file}>{file}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -344,7 +346,7 @@ export function ChatInterface() {
                                     <SelectContent className="bg-black border-white/20 text-white">
                                         <SelectItem value="placeholder" disabled className="text-muted-foreground">Select Job Description</SelectItem>
                                         {availableFiles.jd.map((file) => (
-                                            <SelectItem key={file} value={file} className="text-white focus:bg-white/10">{file}</SelectItem>
+                                            <SelectItem key={file} value={file}>{file}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -527,6 +529,8 @@ export function ChatInterface() {
                         <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <CVAnalyzer onUploadComplete={fetchFiles} />
                         </div>
+                    ) : activeView === "industry-info" ? (
+                        <IndustryInfo />
                     ) : (
                         <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <div className="flex-1 overflow-y-auto p-4">

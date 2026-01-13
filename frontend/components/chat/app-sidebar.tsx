@@ -25,8 +25,8 @@ import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer"
-    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer") => void
+    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info"
+    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info") => void
     activeTab: "text" | "file" | "github"
     setActiveTab: (tab: "text" | "file" | "github") => void
     ingestText: string
@@ -75,6 +75,12 @@ export function AppSidebar({
             isActive: activeView === "cv-analyzer" as any,
             onClick: () => setActiveView("cv-analyzer" as any),
         },
+        {
+            title: "Industry Info",
+            icon: Settings2, // Using Settings2 temporarily or find a better icon like TrendingUp if imported
+            isActive: activeView === "industry-info" as any,
+            onClick: () => setActiveView("industry-info" as any),
+        },
     ]
 
     return (
@@ -109,3 +115,4 @@ export function AppSidebar({
         </Sidebar>
     )
 }
+

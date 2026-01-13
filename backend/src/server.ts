@@ -36,6 +36,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/ingest", ingestRoutes);
 app.use("/api/cv", cvRoutes);
+import industryRoutes from "./routes/industryRoutes";
+app.use("/api/industry", industryRoutes);
 
 app.get("/", (req, res) => {
     res.send("RAG Agent Backend Running");

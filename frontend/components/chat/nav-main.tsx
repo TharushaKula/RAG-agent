@@ -27,7 +27,6 @@ export function NavMain({
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
-                            tooltip={item.title}
                             isActive={item.isActive}
                             onClick={item.onClick}
                         >
