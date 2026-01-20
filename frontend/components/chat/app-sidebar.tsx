@@ -10,6 +10,7 @@ import {
     FileText,
     BookOpen,
     User as UserIcon,
+    Target,
 } from "lucide-react"
 
 import {
@@ -27,8 +28,8 @@ import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile"
-    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile") => void
+    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile" | "roadmap"
+    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile" | "roadmap") => void
     activeTab: "text" | "file" | "github"
     setActiveTab: (tab: "text" | "file" | "github") => void
     ingestText: string
@@ -88,6 +89,12 @@ export function AppSidebar({
             icon: BookOpen,
             isActive: activeView === "learning-materials" as any,
             onClick: () => setActiveView("learning-materials" as any),
+        },
+        {
+            title: "Roadmap",
+            icon: Target,
+            isActive: activeView === "roadmap",
+            onClick: () => setActiveView("roadmap"),
         },
         {
             title: "Profile",
