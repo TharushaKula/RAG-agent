@@ -51,6 +51,15 @@ export function AppSidebar({
     handleFileUpload: _handleFileUpload,
     ...props
 }: AppSidebarProps) {
+    // These props are required by the interface but not used in this component
+    // They're prefixed with _ to indicate intentional non-use
+    void _activeTab;
+    void _setActiveTab;
+    void _ingestText;
+    void _setIngestText;
+    void _isIngesting;
+    void _handleIngest;
+    void _handleFileUpload;
     const { user } = useAuth()
 
     const navItems = [
@@ -69,26 +78,26 @@ export function AppSidebar({
         {
             title: "GitHub Agent",
             icon: Github,
-            isActive: activeView === "github-agent" as any,
-            onClick: () => setActiveView("github-agent" as any),
+            isActive: activeView === "github-agent",
+            onClick: () => setActiveView("github-agent"),
         },
         {
             title: "CV Analyzer",
             icon: FileText,
-            isActive: activeView === "cv-analyzer" as any,
-            onClick: () => setActiveView("cv-analyzer" as any),
+            isActive: activeView === "cv-analyzer",
+            onClick: () => setActiveView("cv-analyzer"),
         },
         {
             title: "Industry Info",
-            icon: Settings2, // Using Settings2 temporarily or find a better icon like TrendingUp if imported
-            isActive: activeView === "industry-info" as any,
-            onClick: () => setActiveView("industry-info" as any),
+            icon: Settings2,
+            isActive: activeView === "industry-info",
+            onClick: () => setActiveView("industry-info"),
         },
         {
             title: "Learning Materials",
             icon: BookOpen,
-            isActive: activeView === "learning-materials" as any,
-            onClick: () => setActiveView("learning-materials" as any),
+            isActive: activeView === "learning-materials",
+            onClick: () => setActiveView("learning-materials"),
         },
         {
             title: "Roadmap",
