@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Circle, Lock, ArrowRight, BookOpen, Clock, Target, TrendingUp, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Lock, ArrowRight, BookOpen, Clock, Target, TrendingUp, PlayCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -171,7 +171,7 @@ export function RoadmapView() {
             case "completed":
                 return <CheckCircle2 className="w-5 h-5 text-green-400" />;
             case "in-progress":
-                return <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />;
+                return <PlayCircle className="w-5 h-5 text-purple-400" />;
             case "locked":
                 return <Lock className="w-5 h-5 text-white/30" />;
         }
