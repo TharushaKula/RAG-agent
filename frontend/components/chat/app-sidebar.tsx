@@ -8,6 +8,7 @@ import {
     SquareTerminal,
     Github,
     FileText,
+    BookOpen,
 } from "lucide-react"
 
 import {
@@ -25,8 +26,8 @@ import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info"
-    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info") => void
+    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials"
+    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials") => void
     activeTab: "text" | "file" | "github"
     setActiveTab: (tab: "text" | "file" | "github") => void
     ingestText: string
@@ -80,6 +81,12 @@ export function AppSidebar({
             icon: Settings2, // Using Settings2 temporarily or find a better icon like TrendingUp if imported
             isActive: activeView === "industry-info" as any,
             onClick: () => setActiveView("industry-info" as any),
+        },
+        {
+            title: "Learning Materials",
+            icon: BookOpen,
+            isActive: activeView === "learning-materials" as any,
+            onClick: () => setActiveView("learning-materials" as any),
         },
     ]
 
