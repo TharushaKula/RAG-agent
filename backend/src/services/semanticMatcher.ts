@@ -202,11 +202,23 @@ export class SemanticMatcher {
         console.log('🔄 Generating embeddings for requirements...');
         const requirementTexts = requirements.map(r => r.text);
         const requirementEmbeddings = await this.embeddingService.embedBatch(requirementTexts);
+        console.log(`✅ Generated ${requirementEmbeddings.length} requirement embeddings`);
 
         // Generate embeddings for CV sections
         console.log('🔄 Generating embeddings for CV sections...');
         const cvTexts = cvSections.map(s => s.text);
         const cvEmbeddings = await this.embeddingService.embedBatch(cvTexts);
+        console.log(`✅ Generated ${cvEmbeddings.length} CV section embeddings`);
+        
+        // Validate embeddings
+        if (requirementEmbeddings.length === 0 || cvEmbeddings.length === 0) {
+            throw new Error('Failed to generate embeddings');
+        }
+        
+        // Log sample embedding dimensions for debugging
+        if (requirementEmbeddings[0] && cvEmbeddings[0]) {
+            console.log(`📊 Embedding dimensions - Requirements: ${requirementEmbeddings[0].length}, CV: ${cvEmbeddings[0].length}`);
+        }
 
         // Calculate similarities
         console.log('🔢 Calculating similarity scores...');
@@ -216,6 +228,8 @@ export class SemanticMatcher {
             const requirement = requirements[i];
             const reqEmbedding = requirementEmbeddings[i];
             const matchedSections: MatchedSection[] = [];
+            let bestSimilarity = 0;
+            let bestSection: { text: string; type: string } | null = null;
 
             // Find best matches in CV sections
             for (let j = 0; j < cvSections.length; j++) {
@@ -224,6 +238,13 @@ export class SemanticMatcher {
                 
                 const similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
                 
+                // Track the best similarity regardless of threshold
+                if (similarity > bestSimilarity) {
+                    bestSimilarity = similarity;
+                    bestSection = { text: cvSection.text, type: cvSection.type };
+                }
+                
+                // Only add to matchedSections if above threshold (for display)
                 if (similarity >= this.similarityThreshold) {
                     matchedSections.push({
                         cvSection: cvSection.text.substring(0, 200), // Truncate for display
@@ -236,17 +257,24 @@ export class SemanticMatcher {
             // Sort by similarity (highest first)
             matchedSections.sort((a, b) => b.similarity - a.similarity);
 
-            // Determine match status
+            // Determine match status based on best similarity
             let status: RequirementMatch['status'] = 'not_matched';
-            let matchScore = 0;
+            const matchScore = bestSimilarity; // Always use the best similarity, even if below threshold
 
-            if (matchedSections.length > 0) {
-                matchScore = matchedSections[0].similarity;
-                if (matchScore >= 0.75) {
-                    status = 'matched';
-                } else if (matchScore >= this.similarityThreshold) {
-                    status = 'partially_matched';
-                }
+            if (matchScore >= 0.75) {
+                status = 'matched';
+            } else if (matchScore >= this.similarityThreshold) {
+                status = 'partially_matched';
+            }
+
+            // If we have a best match but it wasn't added to matchedSections (below threshold),
+            // add it so users can see why the score is what it is
+            if (bestSection && matchedSections.length === 0 && bestSimilarity > 0) {
+                matchedSections.push({
+                    cvSection: bestSection.text.substring(0, 200),
+                    similarity: bestSimilarity,
+                    sectionType: bestSection.type,
+                });
             }
 
             requirementMatches.push({

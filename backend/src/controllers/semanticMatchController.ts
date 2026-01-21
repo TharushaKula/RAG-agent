@@ -152,7 +152,8 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             });
         }
 
-        const matcher = new SemanticMatcher(embeddingService, 0.6);
+        // Lower threshold to 0.5 to be more inclusive, but still use best similarity for scoring
+        const matcher = new SemanticMatcher(embeddingService, 0.5);
 
         // Perform semantic matching
         const matchResult = await matcher.match(
