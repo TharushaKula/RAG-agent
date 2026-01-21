@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { uploadCVAndJD, getUserFiles } from "../controllers/cvController";
+import { uploadCVAndJD, getUserFiles, getFileText } from "../controllers/cvController";
 import { performSemanticMatch, getMatchResult, getUserMatchHistory } from "../controllers/semanticMatchController";
 import multer from "multer";
 import { authenticateToken } from "../middleware/authMiddleware";
@@ -15,6 +15,8 @@ router.post(
 );
 
 router.get("/files", authenticateToken, getUserFiles);
+
+router.get("/file-text", authenticateToken, getFileText);
 
 // Semantic matching routes
 router.post(

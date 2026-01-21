@@ -218,3 +218,58 @@ export const getUserFiles = async (req: Request, res: Response) => {
         res.status(500).json({ error: "Failed to fetch user files: " + error.message });
     }
 };
+
+export const getFileText = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user.userId;
+        const { source, type } = req.query;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        if (!source || !type) {
+            return res.status(400).json({ error: "Source and type are required" });
+        }
+
+        if (type !== "cv" && type !== "jd") {
+            return res.status(400).json({ error: "Type must be 'cv' or 'jd'" });
+        }
+
+        const vectorStore = await getVectorStore();
+        const collection = (vectorStore as any).collection;
+
+        // Find all documents with matching source and type
+        const documents = await collection.find({
+            $or: [
+                { "metadata.userId": userId, "metadata.source": source, "metadata.type": type },
+                { "userId": userId, "source": source, "type": type }
+            ]
+        }).toArray();
+
+        if (documents.length === 0) {
+            return res.status(404).json({ error: "File not found" });
+        }
+
+        // Combine all text chunks
+        const text = documents
+            .map((doc: any) => doc.text || doc.pageContent || "")
+            .filter((text: string) => text.trim().length > 0)
+            .join("\n\n");
+
+        if (!text || text.trim().length === 0) {
+            return res.status(404).json({ error: "No text content found in file" });
+        }
+
+        res.json({
+            source,
+            type,
+            text,
+            chunks: documents.length
+        });
+
+    } catch (error: any) {
+        console.error("Get File Text Error:", error);
+        res.status(500).json({ error: "Failed to fetch file text: " + error.message });
+    }
+};

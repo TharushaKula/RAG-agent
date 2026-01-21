@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { EmbeddingService } from "../services/embeddingService";
 import { SemanticMatcher } from "../services/semanticMatcher";
+import { getVectorStore } from "../services/ragService";
 import pdf from "pdf-parse";
 import clientPromise from "../config/db";
 
@@ -11,14 +12,8 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
         const jdFile = files?.jdFile ? files.jdFile[0] : null;
         const jdText = req.body.jdText;
         const jdTitle = req.body.jdTitle;
-
-        if (!cvFile) {
-            return res.status(400).json({ error: "CV file is required" });
-        }
-
-        if (!jdFile && !jdText) {
-            return res.status(400).json({ error: "Job description (file or text) is required" });
-        }
+        const cvSource = req.body.cvSource; // From database
+        const jdSource = req.body.jdSource; // From database
 
         const userId = (req as any).user.userId;
         if (!userId) {
@@ -27,29 +22,90 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
 
         console.log("🔍 Starting semantic matching process...");
 
-        // Extract text from CV
+        // Get CV text - from database or file
         let cvText = "";
-        try {
-            const cvBuffer = cvFile.buffer;
-            const cvData = await pdf(cvBuffer);
-            cvText = cvData.text;
+        let cvSourceName = "";
 
-            if (!cvText || cvText.trim().length === 0) {
-                return res.status(400).json({
-                    error: "Could not extract text from CV. Please ensure the PDF is text-selectable."
-                });
+        if (cvSource) {
+            // Get CV from database
+            try {
+                const vectorStore = await getVectorStore();
+                const collection = (vectorStore as any).collection;
+                const documents = await collection.find({
+                    $or: [
+                        { "metadata.userId": userId, "metadata.source": cvSource, "metadata.type": "cv" },
+                        { "userId": userId, "source": cvSource, "type": "cv" }
+                    ]
+                }).toArray();
+
+                if (documents.length === 0) {
+                    return res.status(404).json({ error: "CV not found in database" });
+                }
+
+                cvText = documents
+                    .map((doc: any) => doc.text || doc.pageContent || "")
+                    .filter((text: string) => text.trim().length > 0)
+                    .join("\n\n");
+                cvSourceName = cvSource;
+                console.log(`📄 Retrieved CV from database: ${cvSource} (${documents.length} chunks)`);
+            } catch (err: any) {
+                console.error("Error retrieving CV from database:", err);
+                return res.status(500).json({ error: "Failed to retrieve CV from database" });
             }
-        } catch (err: any) {
-            console.error("Error parsing CV PDF:", err);
-            return res.status(500).json({ error: "Failed to parse CV PDF" });
+        } else if (cvFile) {
+            // Extract text from uploaded CV file
+            try {
+                const cvBuffer = cvFile.buffer;
+                const cvData = await pdf(cvBuffer);
+                cvText = cvData.text;
+                cvSourceName = cvFile.originalname;
+
+                if (!cvText || cvText.trim().length === 0) {
+                    return res.status(400).json({
+                        error: "Could not extract text from CV. Please ensure the PDF is text-selectable."
+                    });
+                }
+            } catch (err: any) {
+                console.error("Error parsing CV PDF:", err);
+                return res.status(500).json({ error: "Failed to parse CV PDF" });
+            }
+        } else {
+            return res.status(400).json({ error: "CV is required (select from database or upload file)" });
         }
 
-        // Extract text from JD
+        // Get JD text - from database, file, or text input
         let jdTextContent = "";
-        let jdSource = "text-input";
+        let jdSourceName = "text-input";
 
-        if (jdFile) {
-            jdSource = jdFile.originalname;
+        if (jdSource) {
+            // Get JD from database
+            try {
+                const vectorStore = await getVectorStore();
+                const collection = (vectorStore as any).collection;
+                const documents = await collection.find({
+                    $or: [
+                        { "metadata.userId": userId, "metadata.source": jdSource, "metadata.type": "jd" },
+                        { "userId": userId, "source": jdSource, "type": "jd" }
+                    ]
+                }).toArray();
+
+                if (documents.length === 0) {
+                    return res.status(404).json({ error: "Job description not found in database" });
+                }
+
+                jdTextContent = documents
+                    .map((doc: any) => doc.text || doc.pageContent || "")
+                    .filter((text: string) => text.trim().length > 0)
+                    .join("\n\n");
+                jdSourceName = jdSource;
+                console.log(`📄 Retrieved JD from database: ${jdSource} (${documents.length} chunks)`);
+            } catch (err: any) {
+                console.error("Error retrieving JD from database:", err);
+                return res.status(500).json({ error: "Failed to retrieve Job Description from database" });
+            }
+        } else if (jdFile) {
+            // Extract text from uploaded JD file
+            jdSourceName = jdFile.originalname;
             const buffer = jdFile.buffer;
 
             if (jdFile.mimetype === "application/pdf") {
@@ -59,13 +115,16 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
                 jdTextContent = buffer.toString("utf-8");
             }
         } else if (jdText) {
+            // Use provided text
             jdTextContent = jdText;
             // Use provided title or generate a default one
             if (jdTitle && jdTitle.trim()) {
-                jdSource = jdTitle.trim();
+                jdSourceName = jdTitle.trim();
             } else {
-                jdSource = `Job Description - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+                jdSourceName = `Job Description - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
             }
+        } else {
+            return res.status(400).json({ error: "Job description is required (select from database, upload file, or enter text)" });
         }
 
         if (!jdTextContent || jdTextContent.trim().length === 0) {
@@ -100,8 +159,8 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             cvText,
             jdTextContent,
             userId,
-            cvFile.originalname,
-            jdSource
+            cvSourceName,
+            jdSourceName
         );
 
         // Store match result in database

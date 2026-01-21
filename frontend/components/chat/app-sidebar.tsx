@@ -11,6 +11,7 @@ import {
     BookOpen,
     User as UserIcon,
     Target,
+    Sparkles,
 } from "lucide-react"
 
 import {
@@ -28,8 +29,8 @@ import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile" | "roadmap"
-    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile" | "roadmap") => void
+    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap"
+    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap") => void
     activeTab: "text" | "file" | "github"
     setActiveTab: (tab: "text" | "file" | "github") => void
     ingestText: string
@@ -86,6 +87,12 @@ export function AppSidebar({
             icon: FileText,
             isActive: activeView === "cv-analyzer",
             onClick: () => setActiveView("cv-analyzer"),
+        },
+        {
+            title: "Semantic Match",
+            icon: Sparkles,
+            isActive: activeView === "semantic-matcher",
+            onClick: () => setActiveView("semantic-matcher"),
         },
         {
             title: "Industry Info",

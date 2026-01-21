@@ -45,6 +45,7 @@ import { LiveView } from "../github-agent/LiveView";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { CVAnalyzer } from "../cv-analyzer/CVAnalyzer";
+import { SemanticMatcher } from "../semantic-matcher/SemanticMatcher";
 import { IndustryInfo } from "@/components/industry/IndustryInfo";
 import { LearningMaterials } from "@/components/learning/LearningMaterials";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
@@ -62,14 +63,14 @@ interface Message {
     sources?: Source[];
 }
 
-export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile" | "roadmap" } = {}) {
+export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" } = {}) {
     const { user, token, logout, isLoading: authLoading } = useAuth();
     const router = useRouter();
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer" | "industry-info" | "learning-materials" | "profile" | "roadmap">(initialView);
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap">(initialView);
 
     // Ingestion state
     const [ingestText, setIngestText] = useState("");
@@ -110,14 +111,14 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
     };
 
     useEffect(() => {
-        if (activeView === "cv-analyzer" || activeView === "chat") {
+        if (activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher") {
             fetchFiles();
         }
     }, [activeView, token]);
 
     // Also fetch files when token changes (user logs in)
     useEffect(() => {
-        if (token && (activeView === "cv-analyzer" || activeView === "chat")) {
+        if (token && (activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher")) {
             fetchFiles();
         }
     }, [token]);
@@ -230,7 +231,7 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
         try {
             const activeSources = [];
             // Send selected context if in CV Uploader OR Chat view
-            if (activeView === "cv-analyzer" || activeView === "chat") {
+            if (activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher") {
                 if (selectedCV) activeSources.push(selectedCV);
                 if (selectedJD) activeSources.push(selectedJD);
             }
@@ -333,15 +334,17 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                                                 ? "Knowledge Base"
                                                 : activeView === "cv-analyzer"
                                                     ? "CV Uploader"
-                                                    : activeView === "industry-info"
-                                                        ? "Industry Info"
-                                                        : activeView === "learning-materials"
-                                                            ? "Learning Materials"
-                                                            : activeView === "roadmap"
-                                                                ? "Roadmap"
-                                                                : activeView === "profile"
-                                                                    ? "Profile"
-                                                                    : "GitHub Explorer Agent"}
+                                                    : activeView === "semantic-matcher"
+                                                        ? "Semantic Match"
+                                                        : activeView === "industry-info"
+                                                            ? "Industry Info"
+                                                            : activeView === "learning-materials"
+                                                                ? "Learning Materials"
+                                                                : activeView === "roadmap"
+                                                                    ? "Roadmap"
+                                                                    : activeView === "profile"
+                                                                        ? "Profile"
+                                                                        : "GitHub Explorer Agent"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -349,7 +352,7 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                     </div>
 
                     <div className="ml-auto flex items-center gap-2 px-4">
-                        {(activeView === "cv-analyzer" || activeView === "chat") && (
+                        {(activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher") && (
                             <div className="flex items-center gap-2 mr-2">
                                 <Select value={selectedCV} onValueChange={setSelectedCV}>
                                     <SelectTrigger className="w-[180px] h-8 text-xs bg-white/5 border-white/10 text-white">
@@ -552,6 +555,10 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                     ) : activeView === "cv-analyzer" ? (
                         <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <CVAnalyzer onUploadComplete={fetchFiles} />
+                        </div>
+                    ) : activeView === "semantic-matcher" ? (
+                        <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
+                            <SemanticMatcher />
                         </div>
                     ) : activeView === "industry-info" ? (
                         <IndustryInfo />
