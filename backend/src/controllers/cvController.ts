@@ -80,13 +80,16 @@ export const uploadCVAndJD = async (req: Request, res: Response) => {
                 uploadDate: new Date().toISOString()
             }]);
 
-        } else if (jdText) {
+        } else if (jdText && jdText.trim()) {
+            // Generate a unique source name for text input with timestamp
+            jdSource = `user-input-jd-${Date.now()}`;
             jdDocs = await splitter.createDocuments([jdText], [{
-                source: "user-input-jd",
+                source: jdSource,
                 type: "jd",
                 userId: userId,
                 uploadDate: new Date().toISOString()
             }]);
+            console.log(`📝 Created JD from text input with source: ${jdSource}`);
         }
 
         // Add to Vector Store
@@ -94,13 +97,24 @@ export const uploadCVAndJD = async (req: Request, res: Response) => {
         if (allDocs.length > 0) {
             await vectorStore.addDocuments(allDocs);
             console.log(`✅ Successfully added ${allDocs.length} documents to Vector Store.`);
+            console.log(`📄 CV chunks: ${cvDocs.length}, JD chunks: ${jdDocs.length}`);
+            
+            // Log metadata for debugging
+            if (cvDocs.length > 0) {
+                console.log(`📝 CV metadata sample:`, JSON.stringify(cvDocs[0].metadata, null, 2));
+            }
+            if (jdDocs.length > 0) {
+                console.log(`📝 JD metadata sample:`, JSON.stringify(jdDocs[0].metadata, null, 2));
+                console.log(`📝 JD source: ${jdSource}`);
+            }
         }
 
         res.json({
             success: true,
             message: "CV and JD processed successfully",
             cvChunks: cvDocs.length,
-            jdChunks: jdDocs.length
+            jdChunks: jdDocs.length,
+            jdSource: jdSource  // Return the JD source so frontend knows what was saved
         });
 
     } catch (error: any) {
@@ -112,28 +126,46 @@ export const uploadCVAndJD = async (req: Request, res: Response) => {
 export const getUserFiles = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
         const vectorStore = await getVectorStore();
-
-        // MongoDB aggregation to get unique sources by type
-        // Note: vectorStore.collection is typed as any in ragService, but it's a generic Collection.
-        // We need to cast it or access the underlying collection.
-        // LangChain's MongoDBAtlasVectorSearch exposes `collection`.
-
         const collection = (vectorStore as any).collection;
 
+        console.log(`🔍 Fetching files for user: ${userId}`);
+
+        // More robust query that handles different metadata structures
         const pipeline = [
             {
                 $match: {
                     $or: [
                         { "metadata.userId": userId },
+                        { "metadata.userId": { $exists: false }, "userId": userId },
                         { "userId": userId }
                     ]
                 }
             },
             {
                 $project: {
-                    type: { $ifNull: ["$metadata.type", "$type"] },
-                    source: { $ifNull: ["$metadata.source", "$source"] }
+                    type: { 
+                        $ifNull: [
+                            "$metadata.type", 
+                            { $ifNull: ["$type", null] }
+                        ]
+                    },
+                    source: { 
+                        $ifNull: [
+                            "$metadata.source", 
+                            { $ifNull: ["$source", null] }
+                        ]
+                    }
+                }
+            },
+            {
+                $match: {
+                    type: { $in: ["cv", "jd"] },
+                    source: { $ne: null }
                 }
             },
             {
@@ -147,12 +179,13 @@ export const getUserFiles = async (req: Request, res: Response) => {
             {
                 $group: {
                     _id: "$_id.type",
-                    files: { $push: "$_id.source" }
+                    files: { $addToSet: "$_id.source" }  // Use $addToSet to avoid duplicates
                 }
             }
         ];
 
         const results = await collection.aggregate(pipeline).toArray();
+        console.log(`📋 Query results:`, JSON.stringify(results, null, 2));
 
         const files: Record<string, string[]> = {
             cv: [],
@@ -160,14 +193,22 @@ export const getUserFiles = async (req: Request, res: Response) => {
         };
 
         results.forEach((group: any) => {
-            if (group._id === "cv") files.cv = group.files;
-            if (group._id === "jd") files.jd = group.files;
+            if (group._id === "cv") {
+                files.cv = group.files || [];
+            }
+            if (group._id === "jd") {
+                files.jd = group.files || [];
+            }
         });
+
+        console.log(`✅ Returning files - CV: ${files.cv.length}, JD: ${files.jd.length}`);
+        console.log(`📄 CV files:`, files.cv);
+        console.log(`📄 JD files:`, files.jd);
 
         res.json(files);
 
     } catch (error: any) {
         console.error("Get User Files Error:", error);
-        res.status(500).json({ error: "Failed to fetch user files" });
+        res.status(500).json({ error: "Failed to fetch user files: " + error.message });
     }
 };

@@ -29,6 +29,19 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // Connect to DB
 connectDB();
 
+// Check embedding service on startup (non-blocking)
+import { checkEmbeddingService } from './utils/checkEmbeddingService';
+setTimeout(async () => {
+    const check = await checkEmbeddingService();
+    if (check.available) {
+        console.log('✅ Embedding service is available:', check.details);
+    } else {
+        console.warn('⚠️  Embedding service is not available:', check.details);
+        console.warn('💡 Semantic matching features will not work until the service is started.');
+        console.warn('   Start with: cd embedding-service && docker-compose up');
+    }
+}, 2000); // Wait 2 seconds after server starts
+
 import authRoutes from "./routes/authRoutes";
 
 // Routes

@@ -8,11 +8,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { FileText, Upload, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { FileText, Upload, Loader2, CheckCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { SemanticMatchResults } from "./SemanticMatchResults";
 
 interface CVAnalyzerProps {
     onUploadComplete?: () => void;
+}
+
+interface RequirementMatch {
+    requirement: string;
+    requirementType: string;
+    matchedSections: Array<{
+        cvSection: string;
+        similarity: number;
+        sectionType: string;
+    }>;
+    matchScore: number;
+    status: "matched" | "partially_matched" | "not_matched";
+}
+
+interface MatchResult {
+    matchId: string;
+    userId: string;
+    cvSource: string;
+    jdSource: string;
+    overallScore: number;
+    timestamp: string;
+    requirements: RequirementMatch[];
+    summary: {
+        totalRequirements: number;
+        matchedRequirements: number;
+        partiallyMatchedRequirements: number;
+        unmatchedRequirements: number;
+        averageScore: number;
+    };
+    recommendations: string[];
 }
 
 export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
@@ -21,7 +52,10 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
     const [jdFile, setJdFile] = useState<File | null>(null);
     const [jdText, setJdText] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isSemanticMatching, setIsSemanticMatching] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
+    const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
+    const [activeTab, setActiveTab] = useState<"upload" | "semantic">("upload");
 
     const handleCVChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -69,7 +103,7 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
                 body: formData,
             });
 
-            const data = await res.json();
+            const data = await res.json() as { error?: string; success?: boolean; message?: string };
 
             if (!res.ok) {
                 throw new Error(data.error || "Analysis failed");
@@ -77,23 +111,119 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
 
             toast.success("CV and Job Description uploaded successfully!");
             setUploadStatus("success");
-            if (onUploadComplete) onUploadComplete();
-            // Optional: Reset form or redirect
-        } catch (error: any) {
+            // Refresh file list after successful upload
+            if (onUploadComplete) {
+                // Add a small delay to ensure database is updated
+                setTimeout(() => {
+                    onUploadComplete();
+                }, 500);
+            }
+        } catch (error) {
             console.error("Analysis Error:", error);
-            toast.error(error.message || "Something went wrong.");
+            const errorMessage = error instanceof Error ? error.message : "Something went wrong.";
+            toast.error(errorMessage);
             setUploadStatus("error");
         } finally {
             setIsAnalyzing(false);
         }
     };
 
+    const handleSemanticMatch = async () => {
+        if (!cvFile) {
+            toast.error("Please upload a CV (PDF).");
+            return;
+        }
+        if (!jdFile && !jdText.trim()) {
+            toast.error("Please provide a Job Description.");
+            return;
+        }
+        if (!token) {
+            toast.error("You must be logged in.");
+            return;
+        }
+
+        setIsSemanticMatching(true);
+        setMatchResult(null);
+
+        const formData = new FormData();
+        formData.append("cv", cvFile);
+        if (jdFile) {
+            formData.append("jdFile", jdFile);
+        } else {
+            formData.append("jdText", jdText);
+        }
+
+        try {
+            toast.info("Performing semantic analysis... This may take a moment.");
+            
+            const res = await fetch("/api/cv/semantic-match", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+                body: formData,
+            });
+
+            const data = await res.json() as { 
+                error?: string; 
+                details?: string; 
+                matchResult?: MatchResult;
+                success?: boolean;
+            };
+
+            if (!res.ok) {
+                throw new Error(data.error || data.details || "Semantic matching failed");
+            }
+
+            if (!data.matchResult) {
+                throw new Error("No match result returned");
+            }
+
+            setMatchResult(data.matchResult);
+            toast.success(`Semantic matching complete! Overall score: ${(data.matchResult.overallScore * 100).toFixed(0)}%`);
+            setActiveTab("semantic");
+        } catch (error) {
+            console.error("Semantic Match Error:", error);
+            const errorMessage = error instanceof Error ? error.message : "Semantic matching failed. Make sure the embedding service is running.";
+            toast.error(errorMessage);
+        } finally {
+            setIsSemanticMatching(false);
+        }
+    };
+
+    // If we have match results, show them
+    if (matchResult && activeTab === "semantic") {
+        return (
+            <div className="flex flex-1 flex-col h-full overflow-hidden">
+                <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-white">Semantic Match Results</h2>
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            setActiveTab("upload");
+                            setMatchResult(null);
+                        }}
+                        className="border-white/10 text-white hover:bg-white/10"
+                    >
+                        New Analysis
+                    </Button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                    <SemanticMatchResults matchResult={matchResult} />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-1 flex-col gap-6 p-6 h-full overflow-y-auto w-full max-w-4xl mx-auto">
             <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-white">CV Analyzer</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <FileText className="h-8 w-8 text-purple-400" />
+                    CV Analyzer
+                </h1>
                 <p className="text-muted-foreground">
-                    Upload your CV and a Job Description to get personalized insights and match analysis.
+                    Upload your CV and a Job Description to get personalized insights and semantic match analysis.
                 </p>
             </div>
 
@@ -221,20 +351,39 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
                 </Card>
             </div>
 
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-end gap-3 pt-4">
                 <Button
                     size="lg"
+                    variant="outline"
                     onClick={handleSubmit}
-                    disabled={isAnalyzing}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-purple-900/20"
+                    disabled={isAnalyzing || isSemanticMatching}
+                    className="border-white/10 text-white hover:bg-white/10"
                 >
                     {isAnalyzing ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                        </>
+                    ) : (
+                        "Upload to Database"
+                    )}
+                </Button>
+                <Button
+                    size="lg"
+                    onClick={handleSemanticMatch}
+                    disabled={isAnalyzing || isSemanticMatching}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-900/20"
+                >
+                    {isSemanticMatching ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Analyzing...
                         </>
                     ) : (
-                        "Analyze CV"
+                        <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Semantic Match
+                        </>
                     )}
                 </Button>
             </div>

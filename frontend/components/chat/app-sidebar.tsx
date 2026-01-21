@@ -82,7 +82,7 @@ export function AppSidebar({
             onClick: () => setActiveView("github-agent"),
         },
         {
-            title: "CV Analyzer",
+            title: "CV Uploader",
             icon: FileText,
             isActive: activeView === "cv-analyzer",
             onClick: () => setActiveView("cv-analyzer"),

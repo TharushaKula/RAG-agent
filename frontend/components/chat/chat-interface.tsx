@@ -115,6 +115,13 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
         }
     }, [activeView, token]);
 
+    // Also fetch files when token changes (user logs in)
+    useEffect(() => {
+        if (token && (activeView === "cv-analyzer" || activeView === "chat")) {
+            fetchFiles();
+        }
+    }, [token]);
+
     // Send active sources logic needs to be updated too? 
     // Wait, the handleSubmit logic checked `if (activeView === "cv-analyzer")`.
     // I need to update that too.
@@ -222,7 +229,7 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
 
         try {
             const activeSources = [];
-            // Send selected context if in CV Analyzer OR Chat view
+            // Send selected context if in CV Uploader OR Chat view
             if (activeView === "cv-analyzer" || activeView === "chat") {
                 if (selectedCV) activeSources.push(selectedCV);
                 if (selectedJD) activeSources.push(selectedJD);
@@ -325,7 +332,7 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                                             : activeView === "knowledge"
                                                 ? "Knowledge Base"
                                                 : activeView === "cv-analyzer"
-                                                    ? "CV Analyzer"
+                                                    ? "CV Uploader"
                                                     : activeView === "industry-info"
                                                         ? "Industry Info"
                                                         : activeView === "learning-materials"
