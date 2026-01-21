@@ -8,14 +8,15 @@ class SBERTService:
     Service for generating embeddings using Sentence-BERT models
     """
     
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "all-mpnet-base-v2"):
         """
         Initialize SBERT service with specified model
         
         Args:
             model_name: Name of the Sentence-BERT model to use
-                - "all-MiniLM-L6-v2": Fast, 384 dimensions (recommended)
-                - "all-mpnet-base-v2": Better quality, 768 dimensions, slower
+                - "all-mpnet-base-v2": Best semantic understanding, 768 dimensions (recommended for meaning analysis)
+                - "all-MiniLM-L6-v2": Fast, 384 dimensions, less accurate
+                - "paraphrase-mpnet-base-v2": Optimized for semantic similarity, 768 dimensions
         """
         self.model_name = model_name
         print(f"Loading SBERT model: {model_name}...")

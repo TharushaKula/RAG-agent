@@ -47,8 +47,10 @@ export class SemanticMatcher {
     private embeddingService: EmbeddingService;
     private similarityThreshold: number;
 
-    constructor(embeddingService: EmbeddingService, similarityThreshold: number = 0.6) {
+    constructor(embeddingService: EmbeddingService, similarityThreshold: number = 0.45) {
         this.embeddingService = embeddingService;
+        // Lower threshold to focus on semantic meaning rather than exact text matching
+        // This allows the model to recognize that different wording can express the same meaning
         this.similarityThreshold = similarityThreshold;
     }
 
@@ -219,19 +221,9 @@ export class SemanticMatcher {
     async match(cvText: string, jdText: string, userId: string, cvSource: string, jdSource: string): Promise<MatchResult> {
         console.log('🔍 Starting semantic matching...');
         
-        // Normalize texts for comparison
-        const normalizedCV = cvText.trim().toLowerCase().replace(/\s+/g, ' ');
-        const normalizedJD = jdText.trim().toLowerCase().replace(/\s+/g, ' ');
-        
-        // Check if texts are very similar (exact match or near-exact match)
-        const textSimilarity = this.calculateTextSimilarity(normalizedCV, normalizedJD);
-        console.log(`📊 Text similarity check: ${(textSimilarity * 100).toFixed(1)}%`);
-        
-        // If texts are nearly identical, use a simplified matching approach
-        if (textSimilarity > 0.95) {
-            console.log('✅ Detected near-identical texts, using optimized matching strategy');
-            return this.matchIdenticalTexts(cvText, jdText, userId, cvSource, jdSource, textSimilarity);
-        }
+        // Note: We prioritize semantic meaning over text similarity
+        // Even if texts are similar, we use semantic embeddings to understand meaning
+        // This allows the model to recognize that different wording can express the same meaning
         
         // Extract requirements and CV sections
         const [requirements, cvSections] = await Promise.all([
@@ -283,26 +275,32 @@ export class SemanticMatcher {
             let bestSimilarity = 0;
             let bestSection: { text: string; type: string } | null = null;
 
-            // Find best matches in CV sections
+            // Find best matches in CV sections using semantic similarity
+            // Focus on meaning rather than exact text matching
             for (let j = 0; j < cvSections.length; j++) {
                 const cvSection = cvSections[j];
                 const cvEmbedding = cvEmbeddings[j];
                 
-                // Check for exact or near-exact text match first
+                // Use semantic embedding similarity as primary method
+                // This analyzes the meaning, not just word/sentence structure
+                let similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
+                
+                // Only use text matching as a bonus for exact matches (not primary method)
+                // This ensures we prioritize semantic meaning over literal text
                 const reqNormalized = requirement.text.trim().toLowerCase();
                 const cvNormalized = cvSection.text.trim().toLowerCase();
-                let similarity: number;
                 
+                // Small bonus for exact matches, but don't override semantic similarity
                 if (reqNormalized === cvNormalized) {
-                    similarity = 1.0; // Perfect text match
-                } else if (reqNormalized.includes(cvNormalized) || cvNormalized.includes(reqNormalized)) {
-                    // One contains the other - very high similarity
+                    // Exact match gets a small boost, but trust embeddings for meaning
+                    similarity = Math.min(1.0, similarity + 0.05);
+                } else if (similarity < 0.3 && (reqNormalized.includes(cvNormalized) || cvNormalized.includes(reqNormalized))) {
+                    // Only boost if semantic similarity is very low but text overlaps
+                    // This handles cases where embeddings might miss obvious connections
                     const longer = reqNormalized.length > cvNormalized.length ? reqNormalized : cvNormalized;
                     const shorter = reqNormalized.length > cvNormalized.length ? cvNormalized : reqNormalized;
-                    similarity = 0.95 * (shorter.length / longer.length) + 0.05; // Scale based on overlap
-                } else {
-                    // Use embedding similarity
-                    similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
+                    const textOverlap = shorter.length / longer.length;
+                    similarity = Math.max(similarity, textOverlap * 0.4); // Cap at 40% for text-only matches
                 }
                 
                 // Track the best similarity regardless of threshold
@@ -358,24 +356,20 @@ export class SemanticMatcher {
         const partiallyMatchedCount = requirementMatches.filter(m => m.status === 'partially_matched').length;
         const unmatchedCount = requirementMatches.filter(m => m.status === 'not_matched').length;
         
-        // Use weighted average - give more weight to higher scores (top 70% of matches)
+        // Use weighted average focusing on semantic similarity scores
+        // This prioritizes meaning-based matches over text-based matches
         const scores = requirementMatches.map(m => m.matchScore).sort((a, b) => b - a);
-        const topScores = scores.slice(0, Math.ceil(scores.length * 0.7)); // Top 70% of scores
+        
+        // Use top 75% of scores to focus on best semantic matches
+        // This gives more weight to requirements that have strong semantic alignment
+        const topScores = scores.slice(0, Math.ceil(scores.length * 0.75));
         const averageScore = topScores.length > 0 
             ? topScores.reduce((sum, s) => sum + s, 0) / topScores.length
             : scores.reduce((sum, s) => sum + s, 0) / (scores.length || 1);
         
-        // Also check for exact text matches and boost score
-        const exactMatches = requirementMatches.filter(m => {
-            return m.matchedSections.some(ms => {
-                const reqNorm = m.requirement.toLowerCase().trim();
-                const cvNorm = ms.cvSection.toLowerCase().trim();
-                return reqNorm === cvNorm || reqNorm.includes(cvNorm) || cvNorm.includes(reqNorm);
-            });
-        }).length;
-        
-        const exactMatchBonus = exactMatches > 0 ? (exactMatches / requirementMatches.length) * 0.1 : 0;
-        const overallScore = Math.min(1.0, averageScore + exactMatchBonus);
+        // The overall score is based purely on semantic similarity
+        // No text-based bonuses - we trust the embedding model's understanding of meaning
+        const overallScore = Math.min(1.0, averageScore);
 
         // Generate recommendations
         const recommendations = this.generateRecommendations(requirementMatches, cvText);
@@ -545,18 +539,19 @@ export class SemanticMatcher {
                 const cvSection = cvSections[j];
                 const cvEmbedding = cvEmbeddings[j];
                 
-                // Check for exact text match first
+                // Primary method: Use semantic embedding similarity (analyzes meaning)
+                let similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
+                
+                // Text matching only as a small bonus for exact matches
                 const reqNormalized = requirement.text.trim().toLowerCase();
                 const cvNormalized = cvSection.text.trim().toLowerCase();
-                let similarity: number;
                 
                 if (reqNormalized === cvNormalized) {
-                    similarity = 1.0; // Perfect match
-                } else if (reqNormalized.includes(cvNormalized) || cvNormalized.includes(reqNormalized)) {
-                    similarity = 0.95; // Near-exact match
-                } else {
-                    // Use embedding similarity
-                    similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
+                    // Exact match gets small boost, but trust embeddings for meaning
+                    similarity = Math.min(1.0, similarity + 0.05);
+                } else if (similarity < 0.3 && (reqNormalized.includes(cvNormalized) || cvNormalized.includes(reqNormalized))) {
+                    // Only boost if semantic similarity is very low but text overlaps
+                    similarity = Math.max(similarity, 0.4);
                 }
                 
                 if (similarity > bestSimilarity) {
