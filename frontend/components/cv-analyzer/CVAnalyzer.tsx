@@ -51,6 +51,7 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
     const [cvFile, setCvFile] = useState<File | null>(null);
     const [jdFile, setJdFile] = useState<File | null>(null);
     const [jdText, setJdText] = useState("");
+    const [jdTitle, setJdTitle] = useState("");
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isSemanticMatching, setIsSemanticMatching] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
@@ -92,6 +93,9 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
             formData.append("jdFile", jdFile);
         } else {
             formData.append("jdText", jdText);
+            if (jdTitle.trim()) {
+                formData.append("jdTitle", jdTitle.trim());
+            }
         }
 
         try {
@@ -151,6 +155,9 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
             formData.append("jdFile", jdFile);
         } else {
             formData.append("jdText", jdText);
+            if (jdTitle.trim()) {
+                formData.append("jdTitle", jdTitle.trim());
+            }
         }
 
         try {
@@ -297,15 +304,30 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
                                 <TabsTrigger value="file">Upload File</TabsTrigger>
                             </TabsList>
                             <TabsContent value="text" className="mt-4">
-                                <div className="grid w-full gap-2">
-                                    <Label htmlFor="jd-text">Job Description Text</Label>
-                                    <Textarea
-                                        id="jd-text"
-                                        placeholder="Paste the job description here..."
-                                        className="min-h-[150px] bg-black/40 border-white/10 text-white placeholder:text-white/30 resize-none focus-visible:ring-purple-500/50"
-                                        value={jdText}
-                                        onChange={(e) => setJdText(e.target.value)}
-                                    />
+                                <div className="grid w-full gap-4">
+                                    <div className="grid w-full gap-2">
+                                        <Label htmlFor="jd-title">Job Title</Label>
+                                        <Input
+                                            id="jd-title"
+                                            placeholder="e.g., Software Engineer - Google"
+                                            className="bg-black/40 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-purple-500/50"
+                                            value={jdTitle}
+                                            onChange={(e) => setJdTitle(e.target.value)}
+                                        />
+                                        <p className="text-xs text-white/50">
+                                            Give your job description a name to easily identify it later
+                                        </p>
+                                    </div>
+                                    <div className="grid w-full gap-2">
+                                        <Label htmlFor="jd-text">Job Description Text</Label>
+                                        <Textarea
+                                            id="jd-text"
+                                            placeholder="Paste the job description here..."
+                                            className="min-h-[150px] bg-black/40 border-white/10 text-white placeholder:text-white/30 resize-none focus-visible:ring-purple-500/50"
+                                            value={jdText}
+                                            onChange={(e) => setJdText(e.target.value)}
+                                        />
+                                    </div>
                                 </div>
                             </TabsContent>
                             <TabsContent value="file" className="mt-4">

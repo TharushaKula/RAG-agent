@@ -10,6 +10,7 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
         const cvFile = files?.cv ? files.cv[0] : null;
         const jdFile = files?.jdFile ? files.jdFile[0] : null;
         const jdText = req.body.jdText;
+        const jdTitle = req.body.jdTitle;
 
         if (!cvFile) {
             return res.status(400).json({ error: "CV file is required" });
@@ -59,6 +60,12 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             }
         } else if (jdText) {
             jdTextContent = jdText;
+            // Use provided title or generate a default one
+            if (jdTitle && jdTitle.trim()) {
+                jdSource = jdTitle.trim();
+            } else {
+                jdSource = `Job Description - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+            }
         }
 
         if (!jdTextContent || jdTextContent.trim().length === 0) {

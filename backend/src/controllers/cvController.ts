@@ -10,6 +10,7 @@ export const uploadCVAndJD = async (req: Request, res: Response) => {
         const cvFile = files?.cv ? files.cv[0] : null;
         const jdFile = files?.jdFile ? files.jdFile[0] : null;
         const jdText = req.body.jdText;
+        const jdTitle = req.body.jdTitle;
 
         if (!cvFile) {
             return res.status(400).json({ error: "CV file is required" });
@@ -81,8 +82,13 @@ export const uploadCVAndJD = async (req: Request, res: Response) => {
             }]);
 
         } else if (jdText && jdText.trim()) {
-            // Generate a unique source name for text input with timestamp
-            jdSource = `user-input-jd-${Date.now()}`;
+            // Use provided title or generate a default one
+            if (jdTitle && jdTitle.trim()) {
+                jdSource = jdTitle.trim();
+            } else {
+                // Generate a default name with timestamp if no title provided
+                jdSource = `Job Description - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+            }
             jdDocs = await splitter.createDocuments([jdText], [{
                 source: jdSource,
                 type: "jd",
