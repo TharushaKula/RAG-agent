@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Video, FileText, Headphones, Wrench, ExternalLink, Loader2 } from "lucide-react";
+import { BookOpen, Video, GraduationCap, School, ExternalLink, Loader2, Search, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface Resource {
     id: string;
@@ -18,34 +19,100 @@ interface Resource {
 }
 
 interface ResourcesData {
-    visual: Resource[];
-    auditory: Resource[];
-    reading: Resource[];
-    kinesthetic: Resource[];
+    youtube: Resource[];
+    coursera: Resource[];
+    udemy: Resource[];
 }
 
 export function LearningMaterials() {
     const [resources, setResources] = useState<ResourcesData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeTab, setActiveTab] = useState("youtube");
+    const [searching, setSearching] = useState(false);
+
+    const fetchResources = async (topic?: string, platform?: string) => {
+        try {
+            setLoading(true);
+            setError("");
+            const params = new URLSearchParams();
+            if (topic) params.append("topic", topic);
+            if (platform) params.append("platform", platform);
+
+            const res = await fetch(`/api/learning/resources?${params.toString()}`);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || "Failed to fetch resources");
+            }
+            const data = await res.json();
+            setResources(data.data);
+        } catch (err) {
+            console.error(err);
+            const errorMessage = err instanceof Error ? err.message : "Could not load learning materials.";
+            setError(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) {
+            fetchResources();
+            return;
+        }
+
+        try {
+            setSearching(true);
+            setError("");
+            const params = new URLSearchParams({
+                query: searchQuery,
+                type: activeTab,
+                maxResults: "12",
+            });
+
+            const res = await fetch(`/api/learning/search?${params.toString()}`);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || "Search failed");
+            }
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                // Update the active tab's resources with search results
+                setResources((prev) => {
+                    if (!prev) {
+                        return {
+                            youtube: [],
+                            coursera: [],
+                            udemy: [],
+                            [activeTab]: data.data,
+                        } as ResourcesData;
+                    }
+                    return {
+                        ...prev,
+                        [activeTab]: data.data,
+                    };
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            const errorMessage = err instanceof Error ? err.message : "Search failed";
+            setError(errorMessage);
+        } finally {
+            setSearching(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchResources = async () => {
-            try {
-                const res = await fetch("/api/learning/resources");
-                if (!res.ok) throw new Error("Failed to fetch resources");
-                const data = await res.json();
-                setResources(data.data);
-            } catch (err: any) {
-                console.error(err);
-                setError("Could not load learning materials.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchResources();
     }, []);
+
+    useEffect(() => {
+        // Fetch resources when tab changes
+        fetchResources(undefined, activeTab);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab]);
 
     if (loading) {
         return (
@@ -117,65 +184,120 @@ export function LearningMaterials() {
         </Card>
     );
 
+    const renderEmptyState = (platform: string) => {
+        const platformMessages: Record<string, string> = {
+            youtube: "YouTube API integration is being set up. Please configure YOUTUBE_API_KEY in your backend .env file.",
+            coursera: "Coursera API integration coming soon. We're working on integrating Coursera courses.",
+            udemy: "Udemy API integration coming soon. We're working on integrating Udemy courses.",
+        };
+
+        return (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                <AlertCircle className="w-12 h-12 text-white/30 mb-4" />
+                <h3 className="text-lg font-semibold text-white/70 mb-2">
+                    No {platform.charAt(0).toUpperCase() + platform.slice(1)} resources available
+                </h3>
+                <p className="text-sm text-white/50 max-w-md">
+                    {platformMessages[platform] || `${platform} resource integration coming soon.`}
+                </p>
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-1 flex-col overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white h-full">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/2">
                 <div className="flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-purple-400" />
                     <h2 className="text-lg font-semibold text-white/90">Learning Materials</h2>
                 </div>
                 <Badge variant="outline" className="border-purple-500/30 text-purple-400 bg-purple-500/5">
-                    Curated Resources
+                    Course Platforms
                 </Badge>
             </div>
 
+            {/* Search Bar */}
+            <div className="p-6 pb-4 border-b border-white/10">
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
+                        <Input
+                            type="text"
+                            placeholder="Search for tutorials, courses, or topics..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                            className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-500/50"
+                        />
+                    </div>
+                    <Button
+                        onClick={handleSearch}
+                        disabled={searching}
+                        className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/30"
+                    >
+                        {searching ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Searching...
+                            </>
+                        ) : (
+                            <>
+                                <Search className="w-4 h-4 mr-2" />
+                                Search
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+
             <div className="flex-1 overflow-hidden p-6 pt-2">
-                <Tabs defaultValue="visual" className="h-full flex flex-col">
-                    <TabsList className="grid w-full grid-cols-4 bg-white/5 border border-white/10 mb-6">
-                        <TabsTrigger value="visual" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+                    <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/10 mb-6">
+                        <TabsTrigger value="youtube" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
                             <Video className="w-4 h-4 mr-2" />
-                            Visual
+                            YouTube
                         </TabsTrigger>
-                        <TabsTrigger value="auditory" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-                            <Headphones className="w-4 h-4 mr-2" />
-                            Auditory
+                        <TabsTrigger value="coursera" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+                            <GraduationCap className="w-4 h-4 mr-2" />
+                            Coursera
                         </TabsTrigger>
-                        <TabsTrigger value="reading" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-                            <FileText className="w-4 h-4 mr-2" />
-                            Reading/Writing
-                        </TabsTrigger>
-                        <TabsTrigger value="kinesthetic" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-                            <Wrench className="w-4 h-4 mr-2" />
-                            Kinesthetic
+                        <TabsTrigger value="udemy" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+                            <School className="w-4 h-4 mr-2" />
+                            Udemy
                         </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="visual" className="flex-1 overflow-hidden mt-0">
+                    <TabsContent value="youtube" className="flex-1 overflow-hidden mt-0">
                         <ScrollArea className="h-full pr-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                {resources.visual.map(renderResourceCard)}
-                            </div>
+                            {resources.youtube && resources.youtube.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                    {resources.youtube.map(renderResourceCard)}
+                                </div>
+                            ) : (
+                                renderEmptyState("youtube")
+                            )}
                         </ScrollArea>
                     </TabsContent>
-                    <TabsContent value="auditory" className="flex-1 overflow-hidden mt-0">
+                    <TabsContent value="coursera" className="flex-1 overflow-hidden mt-0">
                         <ScrollArea className="h-full pr-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                {resources.auditory.map(renderResourceCard)}
-                            </div>
+                            {resources.coursera && resources.coursera.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                    {resources.coursera.map(renderResourceCard)}
+                                </div>
+                            ) : (
+                                renderEmptyState("coursera")
+                            )}
                         </ScrollArea>
                     </TabsContent>
-                    <TabsContent value="reading" className="flex-1 overflow-hidden mt-0">
+                    <TabsContent value="udemy" className="flex-1 overflow-hidden mt-0">
                         <ScrollArea className="h-full pr-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                {resources.reading.map(renderResourceCard)}
-                            </div>
-                        </ScrollArea>
-                    </TabsContent>
-                    <TabsContent value="kinesthetic" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                {resources.kinesthetic.map(renderResourceCard)}
-                            </div>
+                            {resources.udemy && resources.udemy.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                    {resources.udemy.map(renderResourceCard)}
+                                </div>
+                            ) : (
+                                renderEmptyState("udemy")
+                            )}
                         </ScrollArea>
                     </TabsContent>
                 </Tabs>

@@ -55,6 +55,9 @@ app.use("/api/industry", industryRoutes);
 import learningRoutes from "./routes/learningRoutes";
 app.use("/api/learning", learningRoutes);
 
+import roadmapRoutes from "./routes/roadmapRoutes";
+app.use("/api/roadmap", roadmapRoutes);
+
 app.get("/", (req, res) => {
     res.send("RAG Agent Backend Running");
 });

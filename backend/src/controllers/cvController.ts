@@ -3,6 +3,7 @@ import { getVectorStore } from "../services/ragService";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Document } from "@langchain/core/documents";
 import pdf from "pdf-parse";
+import clientPromise from "../config/db";
 
 export const uploadCVAndJD = async (req: Request, res: Response) => {
     try {
@@ -136,86 +137,56 @@ export const getUserFiles = async (req: Request, res: Response) => {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        const vectorStore = await getVectorStore();
-        const collection = (vectorStore as any).collection;
+        // Access the MongoDB collection directly
+        const client = await clientPromise;
+        const collection = client.db("rag-agent").collection("documents");
 
         console.log(`🔍 Fetching files for user: ${userId}`);
 
-        // More robust query that handles different metadata structures
-        const pipeline = [
-            {
-                $match: {
-                    $or: [
-                        { "metadata.userId": userId },
-                        { "metadata.userId": { $exists: false }, "userId": userId },
-                        { "userId": userId }
-                    ]
-                }
-            },
-            {
-                $project: {
-                    type: { 
-                        $ifNull: [
-                            "$metadata.type", 
-                            { $ifNull: ["$type", null] }
-                        ]
-                    },
-                    source: { 
-                        $ifNull: [
-                            "$metadata.source", 
-                            { $ifNull: ["$source", null] }
-                        ]
-                    }
-                }
-            },
-            {
-                $match: {
-                    type: { $in: ["cv", "jd"] },
-                    source: { $ne: null }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        type: "$type",
-                        source: "$source"
-                    }
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.type",
-                    files: { $addToSet: "$_id.source" }  // Use $addToSet to avoid duplicates
-                }
-            }
-        ];
-
-        const results = await collection.aggregate(pipeline).toArray();
-        console.log(`📋 Query results:`, JSON.stringify(results, null, 2));
-
+        // Convert userId to string for comparison
+        const userIdStr = String(userId);
+        
+        // Use a simpler, more reliable query approach
+        const allDocs = await collection.find({
+            $or: [
+                { "metadata.userId": userIdStr },
+                { "userId": userIdStr }
+            ]
+        }).toArray();
+        
+        console.log(`📋 Found ${allDocs.length} documents for user`);
+        
         const files: Record<string, string[]> = {
             cv: [],
             jd: []
         };
-
-        results.forEach((group: any) => {
-            if (group._id === "cv") {
-                files.cv = group.files || [];
+        
+        const seen: Record<string, Set<string>> = { cv: new Set(), jd: new Set() };
+        
+        for (const doc of allDocs) {
+            const type = doc.metadata?.type || doc.type;
+            const source = doc.metadata?.source || doc.source;
+            
+            if ((type === "cv" || type === "jd") && source && !seen[type].has(source)) {
+                seen[type].add(source);
+                files[type].push(source);
             }
-            if (group._id === "jd") {
-                files.jd = group.files || [];
-            }
-        });
-
+        }
+        
         console.log(`✅ Returning files - CV: ${files.cv.length}, JD: ${files.jd.length}`);
         console.log(`📄 CV files:`, files.cv);
         console.log(`📄 JD files:`, files.jd);
-
+        
         res.json(files);
 
     } catch (error: any) {
-        console.error("Get User Files Error:", error);
-        res.status(500).json({ error: "Failed to fetch user files: " + error.message });
+        console.error("❌ Get User Files Error:", error);
+        console.error("Error stack:", error.stack);
+        res.status(500).json({ 
+            error: "Failed to fetch user files",
+            message: error.message,
+            details: process.env.NODE_ENV === "development" ? error.stack : undefined
+        });
     }
 };
 
@@ -236,14 +207,16 @@ export const getFileText = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "Type must be 'cv' or 'jd'" });
         }
 
-        const vectorStore = await getVectorStore();
-        const collection = (vectorStore as any).collection;
+        // Access the MongoDB collection directly
+        const client = await clientPromise;
+        const collection = client.db("rag-agent").collection("documents");
 
         // Find all documents with matching source and type
+        const userIdStr = String(userId);
         const documents = await collection.find({
             $or: [
-                { "metadata.userId": userId, "metadata.source": source, "metadata.type": type },
-                { "userId": userId, "source": source, "type": type }
+                { "metadata.userId": userIdStr, "metadata.source": source, "metadata.type": type },
+                { "userId": userIdStr, "source": source, "type": type }
             ]
         }).toArray();
 
