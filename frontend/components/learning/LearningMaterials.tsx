@@ -135,11 +135,63 @@ export function LearningMaterials() {
         fetchResources();
     }, []);
 
+    const handleAutoSearch = async (query: string, type: string) => {
+        try {
+            setTabLoading(type);
+            setError("");
+            const params = new URLSearchParams({
+                query: query,
+                type: type,
+                maxResults: "12",
+            });
+
+            const res = await fetch(`/api/learning/search?${params.toString()}`);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || "Search failed");
+            }
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                // Update the active tab's resources with search results
+                setResources((prev) => {
+                    if (!prev) {
+                        return {
+                            youtube: [],
+                            coursera: [],
+                            udemy: [],
+                            mitocw: [],
+                            microsoftlearn: [],
+                            openlibrary: [],
+                            [type]: data.data,
+                        } as ResourcesData;
+                    }
+                    return {
+                        ...prev,
+                        [type]: data.data,
+                    };
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            const errorMessage = err instanceof Error ? err.message : "Search failed";
+            setError(errorMessage);
+        } finally {
+            setTabLoading(null);
+        }
+    };
+
     useEffect(() => {
         // Fetch resources when tab changes - use tab-specific loading
         if (resources) {
             // Only fetch if resources already exist (not initial load)
-            fetchResources(undefined, activeTab, true);
+            if (activeTab === "microsoftlearn") {
+                // Auto-search for Java when MS Learn tab is selected
+                setSearchQuery("Java");
+                handleAutoSearch("Java", "microsoftlearn");
+            } else {
+                fetchResources(undefined, activeTab, true);
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
