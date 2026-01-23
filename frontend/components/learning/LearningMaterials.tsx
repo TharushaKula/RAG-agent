@@ -41,14 +41,20 @@ interface ResourcesData {
 export function LearningMaterials() {
     const [resources, setResources] = useState<ResourcesData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [tabLoading, setTabLoading] = useState<string | null>(null);
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("youtube");
     const [searching, setSearching] = useState(false);
 
-    const fetchResources = async (topic?: string, platform?: string) => {
+    const fetchResources = async (topic?: string, platform?: string, isTabChange: boolean = false) => {
         try {
-            setLoading(true);
+            // If it's a tab change, use tab-specific loading, otherwise use full-page loading
+            if (isTabChange && platform) {
+                setTabLoading(platform);
+            } else {
+                setLoading(true);
+            }
             setError("");
             const params = new URLSearchParams();
             if (topic) params.append("topic", topic);
@@ -66,7 +72,11 @@ export function LearningMaterials() {
             const errorMessage = err instanceof Error ? err.message : "Could not load learning materials.";
             setError(errorMessage);
         } finally {
-            setLoading(false);
+            if (isTabChange && platform) {
+                setTabLoading(null);
+            } else {
+                setLoading(false);
+            }
         }
     };
 
@@ -126,8 +136,11 @@ export function LearningMaterials() {
     }, []);
 
     useEffect(() => {
-        // Fetch resources when tab changes
-        fetchResources(undefined, activeTab);
+        // Fetch resources when tab changes - use tab-specific loading
+        if (resources) {
+            // Only fetch if resources already exist (not initial load)
+            fetchResources(undefined, activeTab, true);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
@@ -350,70 +363,106 @@ export function LearningMaterials() {
                     </TabsList>
 
                     <TabsContent value="youtube" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            {resources.youtube && resources.youtube.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                    {resources.youtube.map(renderResourceCard)}
-                                </div>
-                            ) : (
-                                renderEmptyState("youtube")
-                            )}
-                        </ScrollArea>
+                        {tabLoading === "youtube" ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full pr-4">
+                                {resources.youtube && resources.youtube.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                        {resources.youtube.map(renderResourceCard)}
+                                    </div>
+                                ) : (
+                                    renderEmptyState("youtube")
+                                )}
+                            </ScrollArea>
+                        )}
                     </TabsContent>
                     <TabsContent value="coursera" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            {resources.coursera && resources.coursera.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                    {resources.coursera.map(renderResourceCard)}
-                                </div>
-                            ) : (
-                                renderEmptyState("coursera")
-                            )}
-                        </ScrollArea>
+                        {tabLoading === "coursera" ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full pr-4">
+                                {resources.coursera && resources.coursera.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                        {resources.coursera.map(renderResourceCard)}
+                                    </div>
+                                ) : (
+                                    renderEmptyState("coursera")
+                                )}
+                            </ScrollArea>
+                        )}
                     </TabsContent>
                     <TabsContent value="udemy" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            {resources.udemy && resources.udemy.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                    {resources.udemy.map(renderResourceCard)}
-                                </div>
-                            ) : (
-                                renderEmptyState("udemy")
-                            )}
-                        </ScrollArea>
+                        {tabLoading === "udemy" ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full pr-4">
+                                {resources.udemy && resources.udemy.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                        {resources.udemy.map(renderResourceCard)}
+                                    </div>
+                                ) : (
+                                    renderEmptyState("udemy")
+                                )}
+                            </ScrollArea>
+                        )}
                     </TabsContent>
                     <TabsContent value="mitocw" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            {resources.mitocw && resources.mitocw.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                    {resources.mitocw.map(renderResourceCard)}
-                                </div>
-                            ) : (
-                                renderEmptyState("mitocw")
-                            )}
-                        </ScrollArea>
+                        {tabLoading === "mitocw" ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full pr-4">
+                                {resources.mitocw && resources.mitocw.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                        {resources.mitocw.map(renderResourceCard)}
+                                    </div>
+                                ) : (
+                                    renderEmptyState("mitocw")
+                                )}
+                            </ScrollArea>
+                        )}
                     </TabsContent>
                     <TabsContent value="microsoftlearn" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            {resources.microsoftlearn && resources.microsoftlearn.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                    {resources.microsoftlearn.map(renderResourceCard)}
-                                </div>
-                            ) : (
-                                renderEmptyState("microsoftlearn")
-                            )}
-                        </ScrollArea>
+                        {tabLoading === "microsoftlearn" ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full pr-4">
+                                {resources.microsoftlearn && resources.microsoftlearn.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                        {resources.microsoftlearn.map(renderResourceCard)}
+                                    </div>
+                                ) : (
+                                    renderEmptyState("microsoftlearn")
+                                )}
+                            </ScrollArea>
+                        )}
                     </TabsContent>
                     <TabsContent value="openlibrary" className="flex-1 overflow-hidden mt-0">
-                        <ScrollArea className="h-full pr-4">
-                            {resources.openlibrary && resources.openlibrary.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-                                    {resources.openlibrary.map(renderResourceCard)}
-                                </div>
-                            ) : (
-                                renderEmptyState("openlibrary")
-                            )}
-                        </ScrollArea>
+                        {tabLoading === "openlibrary" ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full pr-4">
+                                {resources.openlibrary && resources.openlibrary.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                        {resources.openlibrary.map(renderResourceCard)}
+                                    </div>
+                                ) : (
+                                    renderEmptyState("openlibrary")
+                                )}
+                            </ScrollArea>
+                        )}
                     </TabsContent>
                 </Tabs>
             </div>
