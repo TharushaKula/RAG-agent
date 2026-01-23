@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Video, GraduationCap, School, ExternalLink, Loader2, Search, AlertCircle, GraduationCap as MITIcon } from "lucide-react";
+import { BookOpen, Video, GraduationCap, School, ExternalLink, Loader2, Search, AlertCircle, GraduationCap as MITIcon, Book, Laptop } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,10 +16,17 @@ interface Resource {
     description?: string;
     channel?: string;
     instructors?: string;
+    authors?: string;
     duration?: string;
     term?: string;
     level?: string;
     department?: string;
+    type?: string;
+    role?: string;
+    products?: string;
+    isbn?: string;
+    publishYear?: number;
+    subjects?: string;
 }
 
 interface ResourcesData {
@@ -27,6 +34,8 @@ interface ResourcesData {
     coursera: Resource[];
     udemy: Resource[];
     mitocw: Resource[];
+    microsoftlearn: Resource[];
+    openlibrary: Resource[];
 }
 
 export function LearningMaterials() {
@@ -92,6 +101,8 @@ export function LearningMaterials() {
                             coursera: [],
                             udemy: [],
                             mitocw: [],
+                            microsoftlearn: [],
+                            openlibrary: [],
                             [activeTab]: data.data,
                         } as ResourcesData;
                     }
@@ -166,9 +177,15 @@ export function LearningMaterials() {
                 <CardTitle className="text-base font-semibold text-white/90 line-clamp-2 leading-tight group-hover:text-purple-300 transition-colors">
                     {item.title}
                 </CardTitle>
-                {(item.channel || item.instructors) && (
+                {(item.channel || item.instructors || item.authors) && (
                     <CardDescription className="text-xs text-white/50">
-                        {item.channel ? `by ${item.channel}` : `Instructors: ${item.instructors}`}
+                        {item.channel 
+                            ? `by ${item.channel}` 
+                            : item.instructors 
+                            ? `Instructors: ${item.instructors}` 
+                            : item.authors 
+                            ? `by ${item.authors}` 
+                            : ''}
                     </CardDescription>
                 )}
             </CardHeader>
@@ -178,7 +195,7 @@ export function LearningMaterials() {
                         {item.description}
                     </p>
                 )}
-                {(item.term || item.level || item.department) && (
+                {(item.term || item.level || item.department || item.type || item.role || item.products || item.subjects || item.publishYear) && (
                     <div className="flex flex-wrap gap-1 mt-2">
                         {item.department && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
@@ -190,9 +207,34 @@ export function LearningMaterials() {
                                 {item.level}
                             </Badge>
                         )}
+                        {item.type && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.type}
+                            </Badge>
+                        )}
                         {item.term && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
                                 {item.term}
+                            </Badge>
+                        )}
+                        {item.role && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.role}
+                            </Badge>
+                        )}
+                        {item.products && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.products}
+                            </Badge>
+                        )}
+                        {item.publishYear && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.publishYear}
+                            </Badge>
+                        )}
+                        {item.subjects && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.subjects.split(',')[0]}
                             </Badge>
                         )}
                     </div>
@@ -215,6 +257,8 @@ export function LearningMaterials() {
             coursera: "Coursera API integration coming soon. We're working on integrating Coursera courses.",
             udemy: "Udemy API integration coming soon. We're working on integrating Udemy courses.",
             mitocw: "No MIT OCW courses found. Try searching with a different query or topic.",
+            microsoftlearn: "No Microsoft Learn resources found. Try searching with a different query or topic.",
+            openlibrary: "No Open Library books found. Try searching with a different query or topic.",
         };
 
         return (
@@ -278,7 +322,7 @@ export function LearningMaterials() {
 
             <div className="flex-1 overflow-hidden p-6 pt-2">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-                    <TabsList className="grid w-full grid-cols-4 bg-white/5 border border-white/10 mb-6">
+                    <TabsList className="grid w-full grid-cols-6 bg-white/5 border border-white/10 mb-6">
                         <TabsTrigger value="youtube" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
                             <Video className="w-4 h-4 mr-2" />
                             YouTube
@@ -294,6 +338,14 @@ export function LearningMaterials() {
                         <TabsTrigger value="mitocw" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
                             <MITIcon className="w-4 h-4 mr-2" />
                             MIT OCW
+                        </TabsTrigger>
+                        <TabsTrigger value="microsoftlearn" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+                            <Laptop className="w-4 h-4 mr-2" />
+                            MS Learn
+                        </TabsTrigger>
+                        <TabsTrigger value="openlibrary" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+                            <Book className="w-4 h-4 mr-2" />
+                            Books
                         </TabsTrigger>
                     </TabsList>
 
@@ -338,6 +390,28 @@ export function LearningMaterials() {
                                 </div>
                             ) : (
                                 renderEmptyState("mitocw")
+                            )}
+                        </ScrollArea>
+                    </TabsContent>
+                    <TabsContent value="microsoftlearn" className="flex-1 overflow-hidden mt-0">
+                        <ScrollArea className="h-full pr-4">
+                            {resources.microsoftlearn && resources.microsoftlearn.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                    {resources.microsoftlearn.map(renderResourceCard)}
+                                </div>
+                            ) : (
+                                renderEmptyState("microsoftlearn")
+                            )}
+                        </ScrollArea>
+                    </TabsContent>
+                    <TabsContent value="openlibrary" className="flex-1 overflow-hidden mt-0">
+                        <ScrollArea className="h-full pr-4">
+                            {resources.openlibrary && resources.openlibrary.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                    {resources.openlibrary.map(renderResourceCard)}
+                                </div>
+                            ) : (
+                                renderEmptyState("openlibrary")
                             )}
                         </ScrollArea>
                     </TabsContent>
