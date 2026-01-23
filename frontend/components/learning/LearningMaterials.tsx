@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Video, GraduationCap, School, ExternalLink, Loader2, Search, AlertCircle } from "lucide-react";
+import { BookOpen, Video, GraduationCap, School, ExternalLink, Loader2, Search, AlertCircle, GraduationCap as MITIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,13 +15,18 @@ interface Resource {
     thumbnail: string;
     description?: string;
     channel?: string;
+    instructors?: string;
     duration?: string;
+    term?: string;
+    level?: string;
+    department?: string;
 }
 
 interface ResourcesData {
     youtube: Resource[];
     coursera: Resource[];
     udemy: Resource[];
+    mitocw: Resource[];
 }
 
 export function LearningMaterials() {
@@ -86,6 +91,7 @@ export function LearningMaterials() {
                             youtube: [],
                             coursera: [],
                             udemy: [],
+                            mitocw: [],
                             [activeTab]: data.data,
                         } as ResourcesData;
                     }
@@ -160,9 +166,9 @@ export function LearningMaterials() {
                 <CardTitle className="text-base font-semibold text-white/90 line-clamp-2 leading-tight group-hover:text-purple-300 transition-colors">
                     {item.title}
                 </CardTitle>
-                {item.channel && (
+                {(item.channel || item.instructors) && (
                     <CardDescription className="text-xs text-white/50">
-                        by {item.channel}
+                        {item.channel ? `by ${item.channel}` : `Instructors: ${item.instructors}`}
                     </CardDescription>
                 )}
             </CardHeader>
@@ -171,6 +177,25 @@ export function LearningMaterials() {
                     <p className="text-sm text-white/50 line-clamp-3">
                         {item.description}
                     </p>
+                )}
+                {(item.term || item.level || item.department) && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {item.department && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.department}
+                            </Badge>
+                        )}
+                        {item.level && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.level}
+                            </Badge>
+                        )}
+                        {item.term && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/60">
+                                {item.term}
+                            </Badge>
+                        )}
+                    </div>
                 )}
             </CardContent>
             <CardFooter className="p-4 pt-0">
@@ -189,6 +214,7 @@ export function LearningMaterials() {
             youtube: "YouTube API integration is being set up. Please configure YOUTUBE_API_KEY in your backend .env file.",
             coursera: "Coursera API integration coming soon. We're working on integrating Coursera courses.",
             udemy: "Udemy API integration coming soon. We're working on integrating Udemy courses.",
+            mitocw: "No MIT OCW courses found. Try searching with a different query or topic.",
         };
 
         return (
@@ -252,7 +278,7 @@ export function LearningMaterials() {
 
             <div className="flex-1 overflow-hidden p-6 pt-2">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-                    <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/10 mb-6">
+                    <TabsList className="grid w-full grid-cols-4 bg-white/5 border border-white/10 mb-6">
                         <TabsTrigger value="youtube" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
                             <Video className="w-4 h-4 mr-2" />
                             YouTube
@@ -264,6 +290,10 @@ export function LearningMaterials() {
                         <TabsTrigger value="udemy" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
                             <School className="w-4 h-4 mr-2" />
                             Udemy
+                        </TabsTrigger>
+                        <TabsTrigger value="mitocw" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+                            <MITIcon className="w-4 h-4 mr-2" />
+                            MIT OCW
                         </TabsTrigger>
                     </TabsList>
 
@@ -297,6 +327,17 @@ export function LearningMaterials() {
                                 </div>
                             ) : (
                                 renderEmptyState("udemy")
+                            )}
+                        </ScrollArea>
+                    </TabsContent>
+                    <TabsContent value="mitocw" className="flex-1 overflow-hidden mt-0">
+                        <ScrollArea className="h-full pr-4">
+                            {resources.mitocw && resources.mitocw.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+                                    {resources.mitocw.map(renderResourceCard)}
+                                </div>
+                            ) : (
+                                renderEmptyState("mitocw")
                             )}
                         </ScrollArea>
                     </TabsContent>
