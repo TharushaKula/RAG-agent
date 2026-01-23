@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     SidebarProvider,
     SidebarTrigger,
     SidebarInset,
@@ -37,6 +44,13 @@ import { GitHubAgentUI } from "../github-agent/GitHubAgentUI";
 import { LiveView } from "../github-agent/LiveView";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
+import { CVAnalyzer } from "../cv-analyzer/CVAnalyzer";
+import { SemanticMatcher } from "../semantic-matcher/SemanticMatcher";
+import { IndustryInfo } from "@/components/industry/IndustryInfo";
+import { LearningMaterials } from "@/components/learning/LearningMaterials";
+import { ProfilePanel } from "@/components/profile/ProfilePanel";
+import { RoadmapView } from "@/components/roadmap/RoadmapView";
+
 
 interface Source {
     source: string;
@@ -49,17 +63,69 @@ interface Message {
     sources?: Source[];
 }
 
-export function ChatInterface() {
+export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" } = {}) {
     const { user, token, logout, isLoading: authLoading } = useAuth();
     const router = useRouter();
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap">(initialView);
 
     // Ingestion state
     const [ingestText, setIngestText] = useState("");
     const [isIngesting, setIsIngesting] = useState(false);
+
+    // Context Selection State
+    const [availableFiles, setAvailableFiles] = useState<{ cv: string[], jd: string[] }>({ cv: [], jd: [] });
+    const [selectedCV, setSelectedCV] = useState<string>("");
+    const [selectedJD, setSelectedJD] = useState<string>("");
+
+    // Fetch available files
+    const fetchFiles = async () => {
+        if (!token) return;
+        try {
+            console.log("🔄 Fetching user files...");
+            const res = await fetch("/api/cv/files", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                console.log("✅ Files fetched:", data);
+                setAvailableFiles(data);
+                // Auto-select first available if not selected
+                if (data.cv.length > 0 && !selectedCV) {
+                    console.log("🔹 Auto-selecting CV:", data.cv[0]);
+                    setSelectedCV(data.cv[0]);
+                }
+                if (data.jd.length > 0 && !selectedJD) {
+                    console.log("🔹 Auto-selecting JD:", data.jd[0]);
+                    setSelectedJD(data.jd[0]);
+                }
+            } else {
+                console.error("❌ Failed to fetch files, status:", res.status);
+            }
+        } catch (err) {
+            console.error("❌ Failed to fetch files", err);
+        }
+    };
+
+    useEffect(() => {
+        if (activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher") {
+            fetchFiles();
+        }
+    }, [activeView, token]);
+
+    // Also fetch files when token changes (user logs in)
+    useEffect(() => {
+        if (token && (activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher")) {
+            fetchFiles();
+        }
+    }, [token]);
+
+    // Send active sources logic needs to be updated too? 
+    // Wait, the handleSubmit logic checked `if (activeView === "cv-analyzer")`.
+    // I need to update that too.
 
     // GitHub Agent State
     const [isAgentAnalyzing, setIsAgentAnalyzing] = useState(false);
@@ -163,13 +229,23 @@ export function ChatInterface() {
         setIsLoading(true);
 
         try {
+            const activeSources = [];
+            // Send selected context if in CV Uploader OR Chat view
+            if (activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher") {
+                if (selectedCV) activeSources.push(selectedCV);
+                if (selectedJD) activeSources.push(selectedJD);
+            }
+
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ messages: [...messages, userMsg] }),
+                body: JSON.stringify({
+                    messages: [...messages, userMsg],
+                    activeSources: activeSources.length > 0 ? activeSources : undefined
+                }),
             });
 
             if (!res.ok) throw new Error(res.statusText);
@@ -219,7 +295,6 @@ export function ChatInterface() {
     };
 
     const [activeTab, setActiveTab] = useState<"text" | "file" | "github">("file");
-    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent">("chat");
 
     if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
     if (!user) return null; // Redirect handled in useEffect
@@ -237,7 +312,7 @@ export function ChatInterface() {
                 handleIngest={handleIngest}
                 handleFileUpload={handleFileUpload}
             />
-            <SidebarInset>
+            <SidebarInset className="bg-transparent text-white">
                 {/* Dashboard Header */}
                 <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
                     <div className="flex items-center gap-2 px-4">
@@ -253,7 +328,23 @@ export function ChatInterface() {
                                 <BreadcrumbSeparator className="hidden md:block" />
                                 <BreadcrumbItem>
                                     <BreadcrumbPage>
-                                        {activeView === "chat" ? "AI Chat" : activeView === "knowledge" ? "Knowledge Base" : "GitHub Explorer Agent"}
+                                        {activeView === "chat"
+                                            ? "AI Chat"
+                                            : activeView === "knowledge"
+                                                ? "Knowledge Base"
+                                                : activeView === "cv-analyzer"
+                                                    ? "CV Uploader"
+                                                    : activeView === "semantic-matcher"
+                                                        ? "Semantic Match"
+                                                        : activeView === "industry-info"
+                                                            ? "Industry Info"
+                                                            : activeView === "learning-materials"
+                                                                ? "Learning Materials"
+                                                                : activeView === "roadmap"
+                                                                    ? "Roadmap"
+                                                                    : activeView === "profile"
+                                                                        ? "Profile"
+                                                                        : "GitHub Explorer Agent"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -261,6 +352,34 @@ export function ChatInterface() {
                     </div>
 
                     <div className="ml-auto flex items-center gap-2 px-4">
+                        {(activeView === "cv-analyzer" || activeView === "chat" || activeView === "semantic-matcher") && (
+                            <div className="flex items-center gap-2 mr-2">
+                                <Select value={selectedCV} onValueChange={setSelectedCV}>
+                                    <SelectTrigger className="w-[180px] h-8 text-xs bg-white/5 border-white/10 text-white">
+                                        <SelectValue placeholder="Select CV" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-black border-white/20 text-white">
+                                        <SelectItem value="placeholder" disabled className="text-muted-foreground">Select your CV</SelectItem>
+                                        {availableFiles.cv.map((file) => (
+                                            <SelectItem key={file} value={file}>{file}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select value={selectedJD} onValueChange={setSelectedJD}>
+                                    <SelectTrigger className="w-[180px] h-8 text-xs bg-white/5 border-white/10 text-white">
+                                        <SelectValue placeholder="Select JD" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-black border-white/20 text-white">
+                                        <SelectItem value="placeholder" disabled className="text-muted-foreground">Select Job Description</SelectItem>
+                                        {availableFiles.jd.map((file) => (
+                                            <SelectItem key={file} value={file}>{file}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -295,7 +414,7 @@ export function ChatInterface() {
                 {/* Main Content Area */}
                 <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
                     {activeView === "chat" ? (
-                        <div className="flex flex-1 flex-col rounded-xl bg-muted/50">
+                        <div className="flex flex-1 flex-col rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl overflow-hidden text-white">
                             <ScrollArea className="flex-1" ref={scrollViewport}>
                                 <div className="p-4">
                                     <div className="flex flex-col gap-4 max-w-3xl mx-auto">
@@ -324,7 +443,7 @@ export function ChatInterface() {
                                         onChange={e => setInput(e.target.value)}
                                         placeholder="Ask something..."
                                         disabled={isLoading}
-                                        className="flex-1"
+                                        className="flex-1 "
                                     />
                                     <Button
                                         type="submit"
@@ -349,7 +468,7 @@ export function ChatInterface() {
                                         onClick={() => setActiveTab(tab.id as any)}
                                         className={`aspect-video rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors ${activeTab === tab.id
                                             ? "bg-primary text-primary-foreground"
-                                            : "bg-muted/50 hover:bg-muted"}`}
+                                            : "bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/5"}`}
                                     >
                                         <tab.icon className="h-6 w-6" />
                                         <span className="font-medium">{tab.title}</span>
@@ -358,7 +477,7 @@ export function ChatInterface() {
                                 ))}
                             </div>
 
-                            <div className="min-h-[50vh] flex-1 rounded-xl bg-muted/50 p-6">
+                            <div className="min-h-[50vh] flex-1 rounded-xl bg-black/20 backdrop-blur-md border border-white/10 p-6">
                                 {activeTab === "file" && (
                                     <div className="h-full flex flex-col items-center justify-center text-center">
                                         <div
@@ -433,8 +552,28 @@ export function ChatInterface() {
                                 )}
                             </div>
                         </div>
+                    ) : activeView === "cv-analyzer" ? (
+                        <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
+                            <CVAnalyzer onUploadComplete={fetchFiles} />
+                        </div>
+                    ) : activeView === "semantic-matcher" ? (
+                        <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
+                            <SemanticMatcher />
+                        </div>
+                    ) : activeView === "industry-info" ? (
+                        <IndustryInfo />
+                    ) : activeView === "learning-materials" ? (
+                        <LearningMaterials />
+                    ) : activeView === "roadmap" ? (
+                        <RoadmapView />
+                    ) : activeView === "profile" ? (
+                        <div className="flex flex-1 overflow-hidden rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
+                            <div className="flex-1 overflow-y-auto p-4">
+                                <ProfilePanel />
+                            </div>
+                        </div>
                     ) : (
-                        <div className="flex flex-1 overflow-hidden relative">
+                        <div className="flex flex-1 overflow-hidden relative rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <div className="flex-1 overflow-y-auto p-4">
                                 <GitHubAgentUI
                                     onAnalysisStatusChange={setIsAgentAnalyzing}
@@ -481,7 +620,7 @@ export function ChatInterface() {
                         </div>
                     )}
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            </SidebarInset >
+        </SidebarProvider >
     );
 }

@@ -13,6 +13,11 @@ interface MessageProps {
     sources?: Source[];
 }
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+// ... existing imports
+
 export function MessageBubble({ role, content, sources }: MessageProps) {
     return (
         <div
@@ -36,7 +41,28 @@ export function MessageBubble({ role, content, sources }: MessageProps) {
                             : "bg-muted text-foreground border"
                     )}
                 >
-                    <div className="whitespace-pre-wrap">{content}</div>
+                    {role === "user" ? (
+                        <div className="whitespace-pre-wrap">{content}</div>
+                    ) : (
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                table: ({ node, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse text-sm" {...props} /></div>,
+                                th: ({ node, ...props }) => <th className="border border-white/20 px-4 py-2 bg-white/5 font-semibold text-left" {...props} />,
+                                td: ({ node, ...props }) => <td className="border border-white/10 px-4 py-2" {...props} />,
+                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                                li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                strong: ({ node, ...props }) => <strong className="font-bold text-blue-300" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className="text-xl font-bold mb-2 mt-4 text-purple-300" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-lg font-bold mb-2 mt-4 text-purple-300" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-md font-bold mb-1 mt-2 text-purple-300" {...props} />,
+                            }}
+                        >
+                            {content}
+                        </ReactMarkdown>
+                    )}
                 </div>
 
                 {role === "assistant" && sources && sources.length > 0 && (

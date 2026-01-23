@@ -24,15 +24,36 @@ export async function addDocuments(documents: any[]) {
     await vectorStore.addDocuments(documents);
 }
 
-export async function getRetrieverForUser(userId: string) {
+export async function deleteUserDocumentsByType(userId: string, type: "cv" | "jd") {
+    const client = await clientPromise;
+    const collection = client.db("rag-agent").collection("documents");
+
+    await collection.deleteMany({
+        "metadata.userId": userId,
+        "metadata.type": type
+    });
+}
+
+export async function getRetrieverForUser(userId: string, filterSources?: string[]) {
     const vectorStore = await getVectorStore();
-    return vectorStore.asRetriever({
-        filter: {
-            preFilter: {
-                userId: {
-                    $eq: userId
-                }
-            }
+
+    const filter: any = {
+        "userId": {
+            $eq: userId
         }
+    };
+
+    if (filterSources && filterSources.length > 0) {
+        filter["source"] = {
+            $in: filterSources
+        };
+    }
+
+    console.log("🛡️ RAG Retriever Filter (MQL):", JSON.stringify(filter, null, 2));
+
+    return vectorStore.asRetriever({
+        filter: filter,
+        k: 10,
+        searchType: "similarity"
     });
 }

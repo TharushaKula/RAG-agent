@@ -33,6 +33,14 @@ async function setupIndex() {
                     {
                         type: "filter",
                         path: "userId"
+                    },
+                    {
+                        type: "filter",
+                        path: "source"
+                    },
+                    {
+                        type: "filter",
+                        path: "type"
                     }
                 ]
             }

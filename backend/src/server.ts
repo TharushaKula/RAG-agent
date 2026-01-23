@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { connectDB } from "./config/db";
 import chatRoutes from "./routes/chatRoutes";
 import ingestRoutes from "./routes/ingestRoutes";
+import cvRoutes from "./routes/cvRoutes";
 import { Server } from "socket.io";
 import http from "http";
 import { GitHubAgentService } from "./services/GitHubAgentService";
@@ -28,12 +29,34 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // Connect to DB
 connectDB();
 
+// Check embedding service on startup (non-blocking)
+import { checkEmbeddingService } from './utils/checkEmbeddingService';
+setTimeout(async () => {
+    const check = await checkEmbeddingService();
+    if (check.available) {
+        console.log('✅ Embedding service is available:', check.details);
+    } else {
+        console.warn('⚠️  Embedding service is not available:', check.details);
+        console.warn('💡 Semantic matching features will not work until the service is started.');
+        console.warn('   Start with: cd embedding-service && docker-compose up');
+    }
+}, 2000); // Wait 2 seconds after server starts
+
 import authRoutes from "./routes/authRoutes";
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/ingest", ingestRoutes);
+app.use("/api/cv", cvRoutes);
+import industryRoutes from "./routes/industryRoutes";
+app.use("/api/industry", industryRoutes);
+
+import learningRoutes from "./routes/learningRoutes";
+app.use("/api/learning", learningRoutes);
+
+import roadmapRoutes from "./routes/roadmapRoutes";
+app.use("/api/roadmap", roadmapRoutes);
 
 app.get("/", (req, res) => {
     res.send("RAG Agent Backend Running");

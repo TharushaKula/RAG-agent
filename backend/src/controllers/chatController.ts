@@ -12,7 +12,7 @@ export const chat = async (req: Request, res: Response) => {
         }
         const userId = (req as any).user.userId;
 
-        const { messages } = req.body;
+        const { messages, activeSources } = req.body;
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).send("No messages provided");
         }
@@ -21,17 +21,27 @@ export const chat = async (req: Request, res: Response) => {
         const question = lastMessage.content;
 
         // 1. Retrieve context
-        const retriever = await getRetrieverForUser(userId);
+        console.log(`🔎 Chat Request: User ${userId}, Sources:`, activeSources);
+        const retriever = await getRetrieverForUser(userId, activeSources);
         const contextDocs = await retriever.invoke(question);
 
         console.log(`🔍 Retrieved ${contextDocs.length} documents for query: "${question}"`);
+        if (contextDocs.length > 0) {
+            console.log("📄 Top Doc Source:", contextDocs[0].metadata.source);
+        } else {
+            console.warn("⚠️ No documents retrieved!");
+        }
         if (contextDocs.length > 0) {
             console.log("📄 First doc source:", contextDocs[0].metadata.source);
             console.log("📄 First doc preview:", contextDocs[0].pageContent.slice(0, 100));
         }
 
         // Combine docs for the LLM prompt
-        const context = contextDocs.map((doc: any) => doc.pageContent).join("\n\n");
+        const context = contextDocs.map((doc: any) => {
+            const sourceType = doc.metadata.type ? `[${doc.metadata.type.toUpperCase()}]` : "[DOCUMENT]";
+            const sourceName = doc.metadata.source ? `(Source: ${doc.metadata.source})` : "";
+            return `${sourceType} ${sourceName}\n${doc.pageContent}`;
+        }).join("\n\n---\n\n");
 
         // --- FIX: SAFE SOURCE HEADER ---
         const validSources = contextDocs.map((doc: any) => ({
@@ -52,8 +62,17 @@ export const chat = async (req: Request, res: Response) => {
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",
-                `You are a helpful assistant. Use the following context to answer the user's question. 
-        If the answer is not in the context, say so.
+                `You are a helpful AI career assistant. You are provided with context documents that may include a User's CV and a Job Description (JD).
+        
+        The context format is:
+        [CV] ... content ...
+        [JD] ... content ...
+        
+        Instructions:
+        1. If the user asks about skill gaps or improvements, compare the skills found in the [CV] sections against the requirements in the [JD] sections.
+        2. Identify missing skills or areas where the user's experience (CV) doesn't fully meet the job requirements (JD).
+        3. Be encouraging but specific.
+        4. If the answer is not in the context, say so.
         
         Context:
         {context}`,
