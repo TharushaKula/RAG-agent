@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { TokenExpiredError, JsonWebTokenError } from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key_change_me";
 
@@ -23,6 +23,12 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         req.user = decoded;
         next();
     } catch (err) {
-        return res.status(403).json({ error: "Invalid token" });
+        if (err instanceof TokenExpiredError) {
+            return res.status(401).json({ error: "Token expired. Please log in again." });
+        }
+        if (err instanceof JsonWebTokenError) {
+            return res.status(403).json({ error: "Invalid token. Please log in again." });
+        }
+        return res.status(403).json({ error: "Invalid token. Please log in again." });
     }
 };

@@ -15,8 +15,10 @@ interface CVAnalyzerProps {
     onUploadComplete?: () => void;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
-    const { token } = useAuth();
+    const { token, logout } = useAuth();
     const [cvFile, setCvFile] = useState<File | null>(null);
     const [jdFile, setJdFile] = useState<File | null>(null);
     const [jdText, setJdText] = useState("");
@@ -65,10 +67,10 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
         }
 
         try {
-            const res = await fetch("/api/cv/analyze", {
+            const res = await fetch(`${API_BASE}/api/cv/analyze`, {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${token}`
+                    "Authorization": `Bearer ${token}`,
                 },
                 body: formData,
             });
@@ -76,7 +78,13 @@ export function CVAnalyzer({ onUploadComplete }: CVAnalyzerProps) {
             const data = await res.json() as { error?: string; success?: boolean; message?: string };
 
             if (!res.ok) {
-                throw new Error(data.error || "Analysis failed");
+                const errMsg = data.error || "Analysis failed";
+                if ((res.status === 401 || res.status === 403) && (errMsg.toLowerCase().includes("token") || errMsg.toLowerCase().includes("log in"))) {
+                    toast.error("Your session has expired. Please log in again.");
+                    logout();
+                    return;
+                }
+                throw new Error(errMsg);
             }
 
             toast.success("CV and Job Description uploaded successfully!");
