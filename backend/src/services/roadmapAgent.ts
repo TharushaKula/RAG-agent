@@ -206,29 +206,21 @@ Your roadmaps must:
 4. Be tailored to the user's learning style, time availability, and goals
 5. Include realistic time estimates based on the user's availability
 
-IMPORTANT: You must respond with valid JSON only, following this exact structure:
-{
-  "title": "Roadmap title (e.g., 'Full-Stack Web Development Roadmap')",
-  "description": "Brief description of the roadmap (2-3 sentences)",
-  "stages": [
-    {
-      "id": "stage-id-1",
-      "name": "Stage Name",
-      "description": "Stage description",
-      "order": 1,
-      "modules": [
-        {
-          "id": "module-id-1",
-          "title": "Module Title",
-          "description": "Detailed module description (2-3 sentences)",
-          "order": 1,
-          "estimatedHours": 40,
-          "prerequisites": []
-        }
-      ]
-    }
-  ]
-}
+IMPORTANT: You must respond with valid JSON only. The JSON must include:
+- "title": roadmap title (for example, "Full-Stack Web Development Roadmap")
+- "description": brief roadmap description (2-3 sentences)
+- "stages": an array of stage objects, each with:
+  - "id"
+  - "name"
+  - "description"
+  - "order"
+  - "modules": an array of module objects, each with:
+    - "id"
+    - "title"
+    - "description"
+    - "order"
+    - "estimatedHours"
+    - "prerequisites" (array of module ids or names)
 
 User Context:
 {context}
@@ -248,7 +240,7 @@ Generate a comprehensive, personalized roadmap. Focus on practical, actionable l
                 `Create a detailed learning roadmap based on the provided context. Ensure the roadmap is:
 - Progressive (each stage builds on previous)
 - Practical (focus on skills that can be applied)
-- Realistic (time estimates match user's availability)
+- Realistic (time estimates match the user's availability)
 - Comprehensive (cover all necessary topics)
 
 Return ONLY valid JSON, no additional text.`
@@ -333,72 +325,89 @@ Return ONLY valid JSON, no additional text.`
 
     /**
      * Enrich roadmap modules with real learning resources
+     * Uses parallel processing and global timeout for efficiency
      */
     private async enrichRoadmapWithResources(
         roadmapData: any,
         category: string,
         profile: UserProfile
     ): Promise<{ title: string; description: string; stages: RoadmapStage[] }> {
+        const GLOBAL_TIMEOUT = 45000; // 45 seconds max for entire enrichment
+        const PER_MODULE_TIMEOUT = 5000; // 5 seconds per module
+        const startTime = Date.now();
+
+        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s)...`);
+
         const enrichedStages: RoadmapStage[] = [];
+        let isFirstModule = true;
 
         try {
             for (const stage of roadmapData.stages || []) {
-                const enrichedModules: RoadmapModule[] = [];
+                // Check global timeout before processing each stage
+                if (Date.now() - startTime > GLOBAL_TIMEOUT) {
+                    console.warn(`⏱️ Global timeout reached during enrichment. Skipping remaining stages.`);
+                    break;
+                }
 
-                for (const module of stage.modules || []) {
-                    try {
-                        // Fetch resources for this module (with timeout)
-                        const resources = await Promise.race([
-                            this.fetchLearningResources(
-                                module.title,
-                                module.description || '',
-                                category,
-                                profile.learningStyles || []
-                            ),
-                            new Promise<LearningResource[]>((resolve) => 
-                                setTimeout(() => resolve([]), 10000) // 10s timeout per module
-                            )
-                        ]);
+                const stageModules = stage.modules || [];
+                
+                // Process all modules in a stage in parallel for speed
+                const modulePromises = stageModules.map(async (module: any, moduleIndex: number) => {
+                    const moduleStartTime = Date.now();
+                    
+                    // Skip resource fetching if we're running low on time
+                    const remainingTime = GLOBAL_TIMEOUT - (Date.now() - startTime);
+                    const shouldFetchResources = remainingTime > PER_MODULE_TIMEOUT;
 
-                        // Calculate time estimates based on user availability
-                        const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
-                            module.estimatedHours || 40,
-                            profile.timeAvailability || "moderate"
-                        );
-
-                        enrichedModules.push({
-                            id: module.id || `${stage.id}-${module.order || enrichedModules.length + 1}`,
-                            title: module.title || 'Untitled Module',
-                            description: module.description || '',
-                            status: (enrichedModules.length === 0 && enrichedStages.length === 0) ? "available" : "locked",
-                            order: module.order || enrichedModules.length + 1,
-                            estimatedTime,
-                            estimatedHours,
-                            resources: resources.slice(0, 8), // Limit to 8 resources per module
-                            prerequisites: module.prerequisites || [],
-                            progress: 0
-                        });
-                    } catch (moduleError: any) {
-                        console.warn(`Error processing module "${module.title}":`, moduleError.message);
-                        // Continue with module even if resource fetching fails
-                        const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
-                            module.estimatedHours || 40,
-                            profile.timeAvailability || "moderate"
-                        );
-                        
-                        enrichedModules.push({
-                            id: module.id || `${stage.id}-${module.order || enrichedModules.length + 1}`,
-                            title: module.title || 'Untitled Module',
-                            description: module.description || '',
-                            status: (enrichedModules.length === 0 && enrichedStages.length === 0) ? "available" : "locked",
-                            order: module.order || enrichedModules.length + 1,
-                            estimatedTime,
-                            estimatedHours,
-                            resources: [], // Empty resources if fetch fails
-                            prerequisites: module.prerequisites || [],
-                            progress: 0
-                        });
+                    let resources: LearningResource[] = [];
+                    
+                    if (shouldFetchResources) {
+                        try {
+                            resources = await Promise.race([
+                                this.fetchLearningResources(
+                                    module.title,
+                                    module.description || '',
+                                    category,
+                                    profile.learningStyles || []
+                                ),
+                                new Promise<LearningResource[]>((resolve) => 
+                                    setTimeout(() => resolve([]), PER_MODULE_TIMEOUT)
+                                )
+                            ]);
+                        } catch (err: any) {
+                            console.warn(`⚠️ Resource fetch failed for "${module.title}": ${err.message}`);
+                        }
                     }
+
+                    const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
+                        module.estimatedHours || 40,
+                        profile.timeAvailability || "moderate"
+                    );
+
+                    return {
+                        id: module.id || `${stage.id}-${module.order || moduleIndex + 1}`,
+                        title: module.title || 'Untitled Module',
+                        description: module.description || '',
+                        status: "locked" as const, // Will set first module to "available" after
+                        order: module.order || moduleIndex + 1,
+                        estimatedTime,
+                        estimatedHours,
+                        resources: resources.slice(0, 6), // Limit to 6 resources per module
+                        prerequisites: module.prerequisites || [],
+                        progress: 0
+                    };
+                });
+
+                // Wait for all modules in this stage (with overall timeout protection)
+                const enrichedModules = await Promise.all(modulePromises);
+
+                // Sort by order and set first module's status
+                enrichedModules.sort((a, b) => a.order - b.order);
+                
+                // Set the very first module of the entire roadmap to "available"
+                if (isFirstModule && enrichedModules.length > 0) {
+                    enrichedModules[0].status = "available";
+                    isFirstModule = false;
                 }
 
                 enrichedStages.push({
@@ -412,12 +421,18 @@ Return ONLY valid JSON, no additional text.`
             }
         } catch (error: any) {
             console.error("Error enriching roadmap with resources:", error);
-            throw new Error(`Failed to enrich roadmap: ${error.message}`);
+            // If we have at least one stage, continue with what we have
+            if (enrichedStages.length === 0) {
+                throw new Error(`Failed to enrich roadmap: ${error.message}`);
+            }
         }
 
         if (enrichedStages.length === 0) {
             throw new Error("No stages were successfully processed");
         }
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`✅ Resource enrichment completed in ${elapsed}s (${enrichedStages.length} stages)`);
 
         return {
             title: roadmapData.title || `${category} Learning Roadmap`,

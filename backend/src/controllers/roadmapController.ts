@@ -89,12 +89,14 @@ export const generateRoadmap = async (req: Request, res: Response) => {
         }
 
         // Generate roadmap
+        console.log(`⚙️ Starting roadmap generation...`);
         const roadmap = await generator.generateRoadmap(userId, source as "profile" | "cv" | "jd" | "hybrid", inputData);
+        console.log(`📋 Roadmap generated, saving to database...`);
 
         // Save to database
         const savedRoadmap = await roadmapService.createRoadmap(roadmap);
 
-        console.log(`✅ Roadmap generated: ${savedRoadmap._id}`);
+        console.log(`✅ Roadmap saved: ${savedRoadmap._id}`);
 
         res.json({
             success: true,
