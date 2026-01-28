@@ -4,6 +4,7 @@ import { getUsersCollection } from "../models/User";
 import { getVectorStore } from "./ragService";
 import { EmbeddingService } from "./embeddingService";
 import { SemanticMatcher } from "./semanticMatcher";
+import { RoadmapAgent } from "./roadmapAgent";
 
 interface UserProfile {
     learningStyles?: string[];
@@ -22,10 +23,16 @@ interface SkillGap {
 export class RoadmapGenerator {
     private embeddingService: EmbeddingService;
     private semanticMatcher: SemanticMatcher;
+    private roadmapAgent: RoadmapAgent;
 
     constructor(embeddingServiceUrl?: string) {
         this.embeddingService = new EmbeddingService(embeddingServiceUrl);
         this.semanticMatcher = new SemanticMatcher(this.embeddingService, 0.45);
+        
+        // Initialize AI-powered Roadmap Agent
+        const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+        const ollamaModel = process.env.OLLAMA_MODEL || "gpt-oss:20b-cloud";
+        this.roadmapAgent = new RoadmapAgent(ollamaBaseUrl, ollamaModel);
     }
 
     /**
@@ -91,118 +98,52 @@ export class RoadmapGenerator {
     }
 
     /**
-     * Generate roadmap from user profile
+     * Generate roadmap from user profile using AI Agent
      */
     private async generateFromProfile(userId: string, profile: UserProfile): Promise<Roadmap> {
-        // Determine category from learning goals
-        const category = this.determineCategoryFromGoals(profile.learningGoals || []);
+        // Use AI-powered Roadmap Agent
+        const roadmap = await this.roadmapAgent.generateFromProfile(userId, profile);
         
-        // Use AI to generate personalized roadmap
-        const roadmap = await this.generateWithAI(
-            `Create a learning roadmap for someone with these goals: ${profile.learningGoals?.join(", ")}. 
-            Learning styles: ${profile.learningStyles?.join(", ")}. 
-            Time availability: ${profile.timeAvailability}.`,
-            profile,
-            category
-        );
-
-        return {
-            userId: new ObjectId(userId),
-            title: roadmap.title,
-            description: roadmap.description,
-            category: category,
-            source: "profile",
-            stages: roadmap.stages,
-            overallProgress: 0,
-            estimatedCompletionTime: this.calculateTotalTime(roadmap.stages, profile.timeAvailability || "moderate"),
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        };
+        // Ensure userId is ObjectId
+        roadmap.userId = new ObjectId(userId);
+        
+        return roadmap;
     }
 
     /**
-     * Generate roadmap from CV analysis
+     * Generate roadmap from CV analysis using AI Agent
      */
     private async generateFromCV(userId: string, profile: UserProfile, cvText: string): Promise<Roadmap> {
-        // Extract skills from CV
+        // Extract skills from CV for gap analysis
         const currentSkills = await this.extractSkillsFromCV(cvText);
-        
-        // Determine category from skills
-        const category = this.determineCategoryFromSkills(currentSkills);
         
         // Identify skill gaps based on learning goals
         const skillGaps = await this.analyzeSkillGaps(currentSkills, profile.learningGoals || []);
         
-        // Generate roadmap to fill gaps
-        const roadmap = await this.generateWithAI(
-            `Create a learning roadmap to fill these skill gaps: ${skillGaps.map(g => g.skill).join(", ")}.
-            Current skills: ${currentSkills.join(", ")}.
-            Learning goals: ${profile.learningGoals?.join(", ")}.
-            Learning styles: ${profile.learningStyles?.join(", ")}.
-            Time availability: ${profile.timeAvailability}.`,
-            profile,
-            category
-        );
-
-        return {
-            userId: new ObjectId(userId),
-            title: roadmap.title,
-            description: roadmap.description,
-            category: category,
-            source: "cv-analysis",
-            sourceData: {
-                cvSource: "uploaded-cv"
-            },
-            stages: roadmap.stages,
-            overallProgress: 0,
-            estimatedCompletionTime: this.calculateTotalTime(roadmap.stages, profile.timeAvailability || "moderate"),
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        };
+        // Use AI-powered Roadmap Agent
+        const roadmap = await this.roadmapAgent.generateFromCV(userId, profile, cvText, skillGaps);
+        
+        // Ensure userId is ObjectId
+        roadmap.userId = new ObjectId(userId);
+        
+        return roadmap;
     }
 
     /**
-     * Generate roadmap from job description
+     * Generate roadmap from job description using AI Agent
      */
     private async generateFromJD(userId: string, profile: UserProfile, jdText: string): Promise<Roadmap> {
-        // Extract requirements from JD
-        const requirements = await this.semanticMatcher.extractRequirements(jdText);
-        const requiredSkills = requirements.map(r => r.text);
+        // Use AI-powered Roadmap Agent
+        const roadmap = await this.roadmapAgent.generateFromJD(userId, profile, jdText);
         
-        // Determine category from requirements
-        const category = this.determineCategoryFromSkills(requiredSkills);
+        // Ensure userId is ObjectId
+        roadmap.userId = new ObjectId(userId);
         
-        // Generate roadmap to meet requirements
-        const roadmap = await this.generateWithAI(
-            `Create a learning roadmap to meet these job requirements: ${requiredSkills.slice(0, 10).join(", ")}.
-            Learning styles: ${profile.learningStyles?.join(", ")}.
-            Time availability: ${profile.timeAvailability}.`,
-            profile,
-            category
-        );
-
-        return {
-            userId: new ObjectId(userId),
-            title: roadmap.title,
-            description: roadmap.description,
-            category: category,
-            source: "jd-analysis",
-            sourceData: {
-                jdSource: "uploaded-jd"
-            },
-            stages: roadmap.stages,
-            overallProgress: 0,
-            estimatedCompletionTime: this.calculateTotalTime(roadmap.stages, profile.timeAvailability || "moderate"),
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        };
+        return roadmap;
     }
 
     /**
-     * Generate hybrid roadmap from CV + JD
+     * Generate hybrid roadmap from CV + JD using AI Agent
      */
     private async generateHybrid(
         userId: string,
@@ -211,11 +152,6 @@ export class RoadmapGenerator {
         jdText: string,
         semanticMatchResult?: any
     ): Promise<Roadmap> {
-        // Extract skills and requirements
-        const currentSkills = await this.extractSkillsFromCV(cvText);
-        const requirements = await this.semanticMatcher.extractRequirements(jdText);
-        const requiredSkills = requirements.map(r => r.text);
-        
         // Use semantic match results if available to identify gaps
         let skillGaps: SkillGap[] = [];
         if (semanticMatchResult) {
@@ -234,399 +170,37 @@ export class RoadmapGenerator {
             } catch (error) {
                 console.error("Error performing semantic match:", error);
                 // Fallback to simple gap analysis
+                const currentSkills = await this.extractSkillsFromCV(cvText);
+                const requirements = await this.semanticMatcher.extractRequirements(jdText);
+                const requiredSkills = requirements.map(r => r.text);
                 skillGaps = await this.analyzeSkillGaps(currentSkills, requiredSkills);
             }
         }
         
-        // Determine category
-        const category = this.determineCategoryFromSkills(requiredSkills);
-        
-        // Generate roadmap focused on high-priority gaps
-        const highPriorityGaps = skillGaps
-            .filter(g => g.importance === "high")
-            .map(g => g.skill)
-            .slice(0, 10);
-        
-        const roadmap = await this.generateWithAI(
-            `Create a learning roadmap to fill these skill gaps for a job application: ${highPriorityGaps.join(", ")}.
-            Current skills: ${currentSkills.slice(0, 10).join(", ")}.
-            Job requirements: ${requiredSkills.slice(0, 10).join(", ")}.
-            Learning styles: ${profile.learningStyles?.join(", ")}.
-            Time availability: ${profile.timeAvailability}.`,
+        // Use AI-powered Roadmap Agent
+        const roadmap = await this.roadmapAgent.generateHybrid(
+            userId,
             profile,
-            category
+            cvText,
+            jdText,
+            skillGaps,
+            semanticMatchResult?.overallScore
         );
-
-        return {
-            userId: new ObjectId(userId),
-            title: roadmap.title,
-            description: roadmap.description,
-            category: category,
-            source: "hybrid",
-            sourceData: {
-                cvSource: "uploaded-cv",
-                jdSource: "uploaded-jd",
-                semanticMatchScore: semanticMatchResult?.overallScore
-            },
-            stages: roadmap.stages,
-            overallProgress: 0,
-            estimatedCompletionTime: this.calculateTotalTime(roadmap.stages, profile.timeAvailability || "moderate"),
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        };
+        
+        // Ensure userId is ObjectId
+        roadmap.userId = new ObjectId(userId);
+        
+        return roadmap;
     }
 
-    /**
-     * Generate roadmap using AI/LLM
-     */
-    private async generateWithAI(
-        context: string,
-        profile: UserProfile,
-        category: string
-    ): Promise<{ title: string; description: string; stages: RoadmapStage[] }> {
-        // For now, use template-based generation
-        // TODO: Integrate with LLM for AI-powered generation
-        return this.generateFromTemplate(category, profile);
-    }
+    // Removed: generateWithAI, generateFromTemplate, and getTemplate methods
+    // These are now handled by the RoadmapAgent service
 
-    /**
-     * Generate roadmap from template
-     */
-    private generateFromTemplate(category: string, profile: UserProfile): { title: string; description: string; stages: RoadmapStage[] } {
-        // Get template for category
-        const template = this.getTemplate(category);
-        
-        // Customize based on profile
-        const stages = template.stages.map((stage, stageIndex) => ({
-            ...stage,
-            order: stageIndex + 1,
-            modules: stage.modules.map((module, moduleIndex) => {
-                const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
-                    module,
-                    profile.timeAvailability || "moderate"
-                );
-                
-                const resources = this.recommendResources(module, profile.learningStyles || []);
-                
-                return {
-                    ...module,
-                    id: `${category}-${stage.id}-${module.id}`,
-                    order: moduleIndex + 1,
-                    status: (moduleIndex === 0 ? "available" : "locked") as "available" | "locked" | "completed" | "in-progress",
-                    estimatedTime,
-                    estimatedHours,
-                    resources,
-                    progress: 0,
-                    prerequisites: module.prerequisites?.map(p => `${category}-${stage.id}-${p}`)
-                };
-            })
-        }));
+    // Removed: calculateTimeEstimate method
+    // Time estimation is now handled by RoadmapAgent
 
-        return {
-            title: template.title,
-            description: template.description,
-            stages
-        };
-    }
-
-    /**
-     * Get roadmap template for category
-     */
-    private getTemplate(category: string): { title: string; description: string; stages: RoadmapStage[] } {
-        // Default frontend template (can be expanded)
-        const templates: Record<string, { title: string; description: string; stages: RoadmapStage[] }> = {
-            frontend: {
-                title: "Front-End Developer Roadmap",
-                description: "A comprehensive guide to becoming a front-end developer",
-                stages: [
-                    {
-                        id: "fundamentals",
-                        name: "Fundamentals",
-                        description: "Build a strong foundation",
-                        order: 1,
-                        modules: [
-                            {
-                                id: "html-css",
-                                title: "HTML & CSS",
-                                description: "Learn the building blocks of web development",
-                                status: "available",
-                                order: 1,
-                                estimatedTime: "2-3 weeks",
-                                estimatedHours: 40,
-                                resources: [],
-                                progress: 0
-                            },
-                            {
-                                id: "javascript-basics",
-                                title: "JavaScript Basics",
-                                description: "Master the fundamentals of JavaScript programming",
-                                status: "locked",
-                                order: 2,
-                                estimatedTime: "3-4 weeks",
-                                estimatedHours: 60,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["html-css"]
-                            },
-                            {
-                                id: "git",
-                                title: "Version Control (Git)",
-                                description: "Learn to track changes and collaborate with Git",
-                                status: "locked",
-                                order: 3,
-                                estimatedTime: "1-2 weeks",
-                                estimatedHours: 20,
-                                resources: [],
-                                progress: 0
-                            },
-                            {
-                                id: "responsive-design",
-                                title: "Responsive Design",
-                                description: "Create layouts that work on all devices",
-                                status: "locked",
-                                order: 4,
-                                estimatedTime: "2 weeks",
-                                estimatedHours: 30,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["html-css"]
-                            }
-                        ]
-                    },
-                    {
-                        id: "frameworks",
-                        name: "Frameworks & Libraries",
-                        description: "Modern development tools",
-                        order: 2,
-                        modules: [
-                            {
-                                id: "react",
-                                title: "React",
-                                description: "Build user interfaces with React",
-                                status: "locked",
-                                order: 1,
-                                estimatedTime: "4-6 weeks",
-                                estimatedHours: 80,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["javascript-basics"]
-                            },
-                            {
-                                id: "typescript",
-                                title: "TypeScript",
-                                description: "Add type safety to JavaScript",
-                                status: "locked",
-                                order: 2,
-                                estimatedTime: "2-3 weeks",
-                                estimatedHours: 40,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["javascript-basics"]
-                            },
-                            {
-                                id: "nextjs",
-                                title: "Next.js",
-                                description: "Full-stack React framework",
-                                status: "locked",
-                                order: 3,
-                                estimatedTime: "3-4 weeks",
-                                estimatedHours: 60,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["react"]
-                            }
-                        ]
-                    },
-                    {
-                        id: "advanced",
-                        name: "Advanced Topics",
-                        description: "Take your skills to the next level",
-                        order: 3,
-                        modules: [
-                            {
-                                id: "state-management",
-                                title: "State Management",
-                                description: "Manage complex application state",
-                                status: "locked",
-                                order: 1,
-                                estimatedTime: "2-3 weeks",
-                                estimatedHours: 40,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["react"]
-                            },
-                            {
-                                id: "performance",
-                                title: "Performance Optimization",
-                                description: "Make your apps fast and efficient",
-                                status: "locked",
-                                order: 2,
-                                estimatedTime: "2-3 weeks",
-                                estimatedHours: 40,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["react"]
-                            },
-                            {
-                                id: "testing",
-                                title: "Testing",
-                                description: "Write reliable tests for your code",
-                                status: "locked",
-                                order: 3,
-                                estimatedTime: "2-3 weeks",
-                                estimatedHours: 40,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["react"]
-                            },
-                            {
-                                id: "deployment",
-                                title: "Deployment & DevOps",
-                                description: "Deploy and maintain production apps",
-                                status: "locked",
-                                order: 4,
-                                estimatedTime: "2-3 weeks",
-                                estimatedHours: 40,
-                                resources: [],
-                                progress: 0,
-                                prerequisites: ["nextjs"]
-                            }
-                        ]
-                    }
-                ]
-            }
-        };
-
-        return templates[category] || templates.frontend;
-    }
-
-    /**
-     * Calculate time estimate based on user availability
-     */
-    private calculateTimeEstimate(
-        module: RoadmapModule,
-        timeAvailability: string
-    ): { estimatedTime: string; estimatedHours: number } {
-        const baseHours = module.estimatedHours || 40;
-        
-        // Adjust based on time availability
-        const timeMultipliers: Record<string, number> = {
-            minimal: 2.0,      // < 5 hours/week - takes longer
-            moderate: 1.0,     // 5-15 hours/week - normal pace
-            intensive: 0.7,    // 15-30 hours/week - faster
-            fulltime: 0.5      // 40+ hours/week - much faster
-        };
-        
-        const multiplier = timeMultipliers[timeAvailability] || 1.0;
-        const adjustedHours = Math.round(baseHours * multiplier);
-        
-        // Convert to weeks estimate
-        const hoursPerWeek: Record<string, number> = {
-            minimal: 3,
-            moderate: 10,
-            intensive: 22,
-            fulltime: 40
-        };
-        
-        const weeklyHours = hoursPerWeek[timeAvailability] || 10;
-        const weeks = Math.ceil(adjustedHours / weeklyHours);
-        
-        let estimatedTime: string;
-        if (weeks === 1) {
-            estimatedTime = "1 week";
-        } else if (weeks <= 2) {
-            estimatedTime = "1-2 weeks";
-        } else if (weeks <= 4) {
-            estimatedTime = "2-4 weeks";
-        } else if (weeks <= 6) {
-            estimatedTime = "4-6 weeks";
-        } else {
-            estimatedTime = `${weeks} weeks`;
-        }
-        
-        return { estimatedTime, estimatedHours: adjustedHours };
-    }
-
-    /**
-     * Recommend resources based on learning styles
-     */
-    private recommendResources(
-        module: RoadmapModule,
-        learningStyles: string[]
-    ): LearningResource[] {
-        // Default resources for each module type
-        const resourceTemplates: Record<string, LearningResource[]> = {
-            "html-css": [
-                {
-                    id: "html-css-1",
-                    type: "course",
-                    title: "HTML & CSS Basics",
-                    url: "https://www.freecodecamp.org/learn/2022/responsive-web-design/",
-                    description: "FreeCodeCamp Responsive Web Design",
-                    difficulty: "beginner",
-                    completed: false
-                },
-                {
-                    id: "html-css-2",
-                    type: "article",
-                    title: "MDN HTML Guide",
-                    url: "https://developer.mozilla.org/en-US/docs/Web/HTML",
-                    description: "Comprehensive HTML documentation",
-                    difficulty: "beginner",
-                    completed: false
-                }
-            ],
-            "javascript-basics": [
-                {
-                    id: "js-1",
-                    type: "course",
-                    title: "JavaScript Fundamentals",
-                    url: "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/",
-                    description: "FreeCodeCamp JavaScript course",
-                    difficulty: "beginner",
-                    completed: false
-                },
-                {
-                    id: "js-2",
-                    type: "book",
-                    title: "Eloquent JavaScript",
-                    url: "https://eloquentjavascript.net/",
-                    description: "Free online book",
-                    difficulty: "intermediate",
-                    completed: false
-                }
-            ]
-        };
-
-        let resources = resourceTemplates[module.id] || [];
-        
-        // Filter and prioritize based on learning styles
-        if (learningStyles.length > 0) {
-            // Prioritize resources matching learning styles
-            resources = resources.sort((a, b) => {
-                const aMatch = learningStyles.includes(a.type) ? 1 : 0;
-                const bMatch = learningStyles.includes(b.type) ? 1 : 0;
-                return bMatch - aMatch;
-            });
-        }
-        
-        // Add default resources if none exist
-        if (resources.length === 0) {
-            resources = [
-                {
-                    id: `${module.id}-default-1`,
-                    type: "article",
-                    title: `${module.title} - Getting Started`,
-                    description: `Learn ${module.title}`,
-                    difficulty: "beginner",
-                    completed: false
-                }
-            ];
-        }
-        
-        return resources;
-    }
+    // Removed: recommendResources method
+    // Resource recommendation is now handled by RoadmapAgent which fetches real resources
 
     /**
      * Extract skills from CV text

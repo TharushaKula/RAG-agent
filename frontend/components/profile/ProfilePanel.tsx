@@ -13,6 +13,7 @@ import {
   Calendar,
   Check,
   Save,
+  Briefcase,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +61,7 @@ export function ProfilePanel() {
   const [learningStyles, setLearningStyles] = useState<LearningStyleId[]>([]);
   const [timeAvailability, setTimeAvailability] = useState<TimeAvailabilityId | "">("");
   const [learningGoals, setLearningGoals] = useState<LearningGoalId[]>([]);
+  const [targetProfession, setTargetProfession] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,6 +75,7 @@ export function ProfilePanel() {
       setLearningStyles((user.learningStyles || []) as LearningStyleId[]);
       setTimeAvailability((user.timeAvailability || "") as TimeAvailabilityId | "");
       setLearningGoals((user.learningGoals || []) as LearningGoalId[]);
+      setTargetProfession((user as any).targetProfession || "");
     }
   }, [user, authLoading, router]);
 
@@ -107,6 +110,7 @@ export function ProfilePanel() {
           learningStyles,
           timeAvailability,
           learningGoals,
+          targetProfession,
         }),
       });
 
@@ -118,7 +122,8 @@ export function ProfilePanel() {
         learningStyles,
         timeAvailability,
         learningGoals,
-      });
+        targetProfession,
+      } as any);
 
       toast.success("Profile updated successfully");
     } catch (err: any) {
@@ -218,6 +223,17 @@ export function ProfilePanel() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Target Profession
+              </label>
+              <Input
+                value={targetProfession}
+                onChange={(e) => setTargetProfession(e.target.value)}
+                placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
+              />
+            </div>
+
             <Separator className="my-2" />
 
             <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
@@ -241,6 +257,13 @@ export function ProfilePanel() {
                 </span>
               </div>
             </div>
+            {targetProfession && (
+              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-background/60 px-3 py-2 text-xs">
+                <Briefcase className="h-3.5 w-3.5 text-primary" />
+                <span className="text-muted-foreground">Target profession:</span>
+                <span className="font-medium text-foreground/80">{targetProfession}</span>
+              </div>
+            )}
           </div>
         </Card>
 

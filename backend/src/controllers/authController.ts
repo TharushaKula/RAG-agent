@@ -88,7 +88,8 @@ export const login = async (req: Request, res: Response) => {
                 age: user.age,
                 learningStyles: user.learningStyles || [],
                 timeAvailability: user.timeAvailability || "",
-                learningGoals: user.learningGoals || []
+                learningGoals: user.learningGoals || [],
+                targetProfession: user.targetProfession || ""
             }
         });
 
@@ -101,22 +102,30 @@ export const login = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
-        const { age, learningStyles, timeAvailability, learningGoals } = req.body;
+        const { age, learningStyles, timeAvailability, learningGoals, targetProfession, name } = req.body;
 
         const users = await getUsersCollection();
         const { ObjectId } = await import("mongodb");
 
+        const updateData: any = {
+            age,
+            learningStyles,
+            timeAvailability,
+            learningGoals,
+            onboardingCompleted: true
+        };
+
+        if (targetProfession !== undefined) {
+            updateData.targetProfession = targetProfession;
+        }
+
+        if (name !== undefined) {
+            updateData.name = name;
+        }
+
         await users.updateOne(
             { _id: new ObjectId(userId) },
-            {
-                $set: {
-                    age,
-                    learningStyles,
-                    timeAvailability,
-                    learningGoals,
-                    onboardingCompleted: true
-                }
-            }
+            { $set: updateData }
         );
 
         return res.json({ success: true, message: "Profile updated successfully" });

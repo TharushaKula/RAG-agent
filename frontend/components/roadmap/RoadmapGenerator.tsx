@@ -87,10 +87,33 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                 body: JSON.stringify(body)
             });
 
-            const data = await res.json();
+            // Safely parse JSON; handle non-JSON error bodies (e.g. "Internal Server Error")
+            const contentType = res.headers.get("content-type") || "";
+            let data: any = null;
+            let rawBody: string | null = null;
+
+            if (contentType.includes("application/json")) {
+                data = await res.json();
+            } else {
+                rawBody = await res.text();
+            }
 
             if (!res.ok) {
-                throw new Error(data.error || "Failed to generate roadmap");
+                const message =
+                    data?.message ||
+                    data?.error ||
+                    rawBody ||
+                    `Failed to generate roadmap (status ${res.status})`;
+
+                console.error("Roadmap generation failed:", 
+                    "status:", res.status,
+                    "statusText:", res.statusText,
+                    "body:", rawBody,
+                    "data:", JSON.stringify(data)
+                );
+
+                toast.error(message);
+                return;
             }
 
             toast.success("Roadmap generated successfully! 🎉");
