@@ -10,13 +10,17 @@ const roadmapService = new RoadmapService();
  * Generate a new roadmap
  */
 export const generateRoadmap = async (req: Request, res: Response) => {
+    let userId: string | undefined;
+    let source: string | undefined;
+    
     try {
-        const userId = (req as any).user.userId;
+        userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        const { source, cvSource, jdSource } = req.body;
+        const reqSource = req.body.source;
+        source = reqSource;
 
         if (!source || !["profile", "cv", "jd", "hybrid"].includes(source)) {
             return res.status(400).json({ error: "Invalid source. Must be: profile, cv, jd, or hybrid" });
@@ -29,6 +33,8 @@ export const generateRoadmap = async (req: Request, res: Response) => {
 
         // Prepare input data
         const inputData: any = {};
+        const cvSource = req.body.cvSource;
+        const jdSource = req.body.jdSource;
 
         // Get CV text if needed
         if (source === "cv" || source === "hybrid") {
@@ -83,7 +89,7 @@ export const generateRoadmap = async (req: Request, res: Response) => {
         }
 
         // Generate roadmap
-        const roadmap = await generator.generateRoadmap(userId, source, inputData);
+        const roadmap = await generator.generateRoadmap(userId, source as "profile" | "cv" | "jd" | "hybrid", inputData);
 
         // Save to database
         const savedRoadmap = await roadmapService.createRoadmap(roadmap);
@@ -97,9 +103,33 @@ export const generateRoadmap = async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error("Roadmap generation error:", error);
-        res.status(500).json({
+        console.error("Error details:", {
+            message: error.message,
+            stack: error.stack,
+            userId,
+            source
+        });
+        
+        // Provide more specific error messages
+        let errorMessage = error.message || "Failed to generate roadmap";
+        let statusCode = 500;
+        
+        // Check for common errors
+        if (error.message?.includes("Ollama service is not available")) {
+            statusCode = 503; // Service Unavailable
+            errorMessage = "Ollama AI service is not running. Please start Ollama (ollama serve) and ensure the model is available.";
+        } else if (error.message?.includes("No JSON found in LLM response")) {
+            errorMessage = "AI model did not return valid roadmap data. Please check Ollama model configuration.";
+        } else if (error.message?.includes("timeout")) {
+            errorMessage = "Roadmap generation timed out. The AI model may be too slow. Try a faster model or increase timeout.";
+        }
+        
+        res.status(statusCode).json({
             error: "Failed to generate roadmap",
-            message: error.message
+            message: errorMessage,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+            userId: userId,
+            source: source
         });
     }
 };
