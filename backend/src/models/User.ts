@@ -12,6 +12,7 @@ export interface User {
     learningStyles?: string[];
     timeAvailability?: string;
     learningGoals?: string[];
+    targetProfession?: string;
 }
 
 export const getUsersCollection = async () => {

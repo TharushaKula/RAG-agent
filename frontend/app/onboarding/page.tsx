@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ArrowRight, ArrowLeft, Check, Sparkles, Brain, Target, Rocket, Clock, Calendar, GraduationCap, Briefcase, Heart, Award, Repeat } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Check, Sparkles, Brain, Target, Rocket, Clock, Calendar, GraduationCap, Briefcase, Heart, Award, Repeat, Briefcase as BriefcaseIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const STEPS = [
@@ -31,6 +31,12 @@ const STEPS = [
         title: "Your Mission",
         description: "What are your primary objectives?",
         icon: Target,
+    },
+    {
+        id: "profession",
+        title: "Target Profession",
+        description: "What career or profession are you aiming for?",
+        icon: BriefcaseIcon,
     },
 ];
 
@@ -88,6 +94,7 @@ export default function OnboardingPage() {
     const [learningStyles, setLearningStyles] = useState<string[]>([]);
     const [timeAvailability, setTimeAvailability] = useState<string>("");
     const [learningGoals, setLearningGoals] = useState<string[]>([]);
+    const [targetProfession, setTargetProfession] = useState<string>("");
 
     const toggleItem = (item: string, state: string[], setState: (val: string[]) => void) => {
         setState(state.includes(item)
@@ -124,7 +131,8 @@ export default function OnboardingPage() {
                     age: parseInt(age),
                     learningStyles,
                     timeAvailability,
-                    learningGoals
+                    learningGoals,
+                    targetProfession
                 }),
             });
 
@@ -135,6 +143,7 @@ export default function OnboardingPage() {
                 learningStyles,
                 timeAvailability,
                 learningGoals,
+                targetProfession,
                 onboardingCompleted: true
             });
             toast.success("Profile ready! Welcome to RAG Agent.");
@@ -151,6 +160,7 @@ export default function OnboardingPage() {
         if (currentStep === 1) return learningStyles.length === 0;
         if (currentStep === 2) return !timeAvailability;
         if (currentStep === 3) return learningGoals.length === 0;
+        if (currentStep === 4) return !targetProfession.trim();
         return false;
     };
 
@@ -295,6 +305,23 @@ export default function OnboardingPage() {
                                                 {learningGoals.includes(goal.id) && <Check className="w-6 h-6" />}
                                             </button>
                                         ))}
+                                    </div>
+                                )}
+
+                                {currentStep === 4 && (
+                                    <div className="max-w-md mx-auto w-full">
+                                        <div className="relative group">
+                                            <input
+                                                type="text"
+                                                value={targetProfession}
+                                                onChange={(e) => setTargetProfession(e.target.value)}
+                                                placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
+                                                className="w-full bg-white/5 border-2 border-white/10 rounded-2xl p-6 text-center text-xl font-semibold text-white placeholder-white/20 focus:outline-none focus:border-[#FF9F89]/50 focus:bg-white/10 transition-all hover:bg-white/10"
+                                                autoFocus
+                                            />
+                                            <div className="absolute inset-0 rounded-2xl border-2 border-[#FF9F89] opacity-0 group-focus-within:opacity-20 transition-opacity pointer-events-none" />
+                                        </div>
+                                        <p className="text-center text-white/30 mt-4 text-sm font-medium">This helps us create more targeted learning paths for you.</p>
                                     </div>
                                 )}
                             </div>
