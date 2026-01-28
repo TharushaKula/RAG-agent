@@ -126,35 +126,5 @@ const stream = await chain.stream({ context, question });
 // of the 3 retrieved docs, so the UI can show citations.
 ```
 
----
 
-## 🎨 6. Frontend Implementation (`chat-interface.tsx`)
 
-### State Management
-We handle a complex state:
--   `messages`: Array of chat objects `{ role, content, sources }`.
--   `isLoading`: Locking the input while generating.
-
-### The "Double Word" Bug Fix
-During implementation, we faced an issue where streaming tokens duplicated (e.g., "HelloHello").
--   **Cause**: `React.StrictMode` (in dev) invokes state setters twice to detect side effects. Our original code mutated the message object directly (`msg.content += chunk`).
--   **Fix**: Immutable state updates.
-    ```typescript
-    // We clone the object first
-    const lastMsg = { ...newMsgs[index] };
-    lastMsg.content += chunk;
-    newMsgs[index] = lastMsg; // Then replace it
-    ```
-
-### Scroll Logic
-We built a custom `scrollToBottom` function using `useRef`.
--   We had to update the Shadcn `ScrollArea` component to use `React.forwardRef`. This allows the parent `ChatInterface` to access the underlying DOM node and force it to scroll whenever `messages` change.
-
----
-
-## 🔍 7. Debugging Tools
-
-We created a custom script `verify-db.ts` to debug the "0 results" error.
--   It connects directly to MongoDB (bypassing the app).
--   It performs a raw `$vectorSearch` aggregation.
--   This helped us prove that the issue was the **Atlas Index Name** mismatch, not the code itself.
