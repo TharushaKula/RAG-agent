@@ -27,7 +27,6 @@ interface SkillGap {
  * Intelligent Roadmap Generation Agent using LangChain
  * 
  * This agent uses AI to generate personalized learning roadmaps based on:
- * - User profile and learning preferences
  * - CV analysis and skill gaps
  * - Job description requirements
  * - Hybrid analysis combining CV and JD
@@ -70,27 +69,6 @@ export class RoadmapAgent {
                 error: error.message || 'Ollama is not accessible'
             };
         }
-    }
-
-    /**
-     * Generate roadmap from user profile
-     */
-    async generateFromProfile(
-        userId: string,
-        profile: UserProfile,
-        category?: string
-    ): Promise<Roadmap> {
-        const context = this.buildProfileContext(profile);
-        const detectedCategory = category || this.determineCategoryFromGoals(profile.learningGoals || []);
-
-        const roadmapData = await this.generateRoadmapWithAI(
-            context,
-            profile,
-            detectedCategory,
-            "profile"
-        );
-
-        return this.formatRoadmap(userId, roadmapData, detectedCategory, "profile", profile);
     }
 
     /**
@@ -641,19 +619,6 @@ Return ONLY valid JSON, no additional text.`
     }
 
     /**
-     * Build context for profile-based generation
-     */
-    private buildProfileContext(profile: UserProfile): string {
-        return `User wants to create a learning roadmap based on their profile:
-- Learning Goals: ${profile.learningGoals?.join(", ") || "General skill development"}
-- Learning Styles: ${profile.learningStyles?.join(", ") || "Mixed learning styles"}
-- Time Availability: ${profile.timeAvailability || "moderate"}
-- Age: ${profile.age || "Not specified"}
-
-Create a comprehensive roadmap that aligns with their goals and learning preferences.`;
-    }
-
-    /**
      * Build context for CV-based generation
      */
     private buildCVContext(cvText: string, skillGaps?: SkillGap[], profile?: UserProfile): string {
@@ -770,31 +735,6 @@ Create a focused roadmap that bridges the gap between current skills and job req
         } else {
             return `${Math.round(totalWeeks / 12)} year${Math.round(totalWeeks / 12) > 1 ? 's' : ''}`;
         }
-    }
-
-    /**
-     * Determine category from learning goals
-     */
-    private determineCategoryFromGoals(goals: string[]): string {
-        const goalText = goals.join(" ").toLowerCase();
-        
-        if (goalText.match(/\b(frontend|react|vue|angular|ui|ux|html|css)\b/)) {
-            return "frontend";
-        }
-        if (goalText.match(/\b(backend|node|api|server|database)\b/)) {
-            return "backend";
-        }
-        if (goalText.match(/\b(data science|machine learning|ai|ml|python|analytics)\b/)) {
-            return "data-science";
-        }
-        if (goalText.match(/\b(devops|docker|kubernetes|aws|azure|cloud)\b/)) {
-            return "devops";
-        }
-        if (goalText.match(/\b(full.?stack|fullstack|web development)\b/)) {
-            return "fullstack";
-        }
-        
-        return "frontend"; // Default
     }
 
     /**

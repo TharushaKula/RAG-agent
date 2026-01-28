@@ -40,7 +40,7 @@ export class RoadmapGenerator {
      */
     async generateRoadmap(
         userId: string,
-        source: "profile" | "cv" | "jd" | "hybrid",
+        source: "cv" | "jd" | "hybrid",
         inputData: {
             profile?: UserProfile;
             cvText?: string;
@@ -50,7 +50,7 @@ export class RoadmapGenerator {
             semanticMatchResult?: any;
         }
     ): Promise<Roadmap> {
-        // Get user profile
+        // Get user profile (used for CV/JD/hybrid personalization)
         const users = await getUsersCollection();
         const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
@@ -67,9 +67,6 @@ export class RoadmapGenerator {
         let roadmap: Roadmap;
 
         switch (source) {
-            case "profile":
-                roadmap = await this.generateFromProfile(userId, userProfile);
-                break;
             case "cv":
                 if (!inputData.cvText) throw new Error("CV text is required");
                 roadmap = await this.generateFromCV(userId, userProfile, inputData.cvText);
@@ -94,19 +91,6 @@ export class RoadmapGenerator {
                 throw new Error(`Unknown source: ${source}`);
         }
 
-        return roadmap;
-    }
-
-    /**
-     * Generate roadmap from user profile using AI Agent
-     */
-    private async generateFromProfile(userId: string, profile: UserProfile): Promise<Roadmap> {
-        // Use AI-powered Roadmap Agent
-        const roadmap = await this.roadmapAgent.generateFromProfile(userId, profile);
-        
-        // Ensure userId is ObjectId
-        roadmap.userId = new ObjectId(userId);
-        
         return roadmap;
     }
 

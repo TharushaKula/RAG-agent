@@ -22,8 +22,8 @@ export const generateRoadmap = async (req: Request, res: Response) => {
         const reqSource = req.body.source;
         source = reqSource;
 
-        if (!source || !["profile", "cv", "jd", "hybrid"].includes(source)) {
-            return res.status(400).json({ error: "Invalid source. Must be: profile, cv, jd, or hybrid" });
+        if (!source || !["cv", "jd", "hybrid"].includes(source)) {
+            return res.status(400).json({ error: "Invalid source. Must be: cv, jd, or hybrid" });
         }
 
         console.log(`🛣️ Generating roadmap for user ${userId}, source: ${source}`);
@@ -90,7 +90,7 @@ export const generateRoadmap = async (req: Request, res: Response) => {
 
         // Generate roadmap
         console.log(`⚙️ Starting roadmap generation...`);
-        const roadmap = await generator.generateRoadmap(userId, source as "profile" | "cv" | "jd" | "hybrid", inputData);
+        const roadmap = await generator.generateRoadmap(userId, source as "cv" | "jd" | "hybrid", inputData);
         console.log(`📋 Roadmap generated, saving to database...`);
 
         // Save to database

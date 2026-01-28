@@ -16,18 +16,18 @@ interface RoadmapGeneratorProps {
 
 export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProps) {
     const { token } = useAuth();
-    const [source, setSource] = useState<"profile" | "cv" | "jd" | "hybrid">("profile");
+    const [source, setSource] = useState<"cv" | "jd" | "hybrid">("cv");
     const [availableFiles, setAvailableFiles] = useState<{ cv: string[], jd: string[] }>({ cv: [], jd: [] });
     const [selectedCV, setSelectedCV] = useState<string>("");
     const [selectedJD, setSelectedJD] = useState<string>("");
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // Fetch available files
+    // Fetch available files for CV/JD/hybrid
     useEffect(() => {
-        if (token && (source === "cv" || source === "jd" || source === "hybrid")) {
+        if (token) {
             fetchFiles();
         }
-    }, [token, source]);
+    }, [token]);
 
     const fetchFiles = async () => {
         if (!token) return;
@@ -136,7 +136,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                         Generate Learning Roadmap
                     </h1>
                     <p className="text-muted-foreground">
-                        Create a personalized learning path based on your profile, CV, or job requirements.
+                        Create a personalized learning path based on your CV, job description, or both.
                     </p>
                 </div>
                 <Button
@@ -164,7 +164,6 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="profile">Profile-Based (Learning Goals)</SelectItem>
                                 <SelectItem value="cv">CV Analysis (Skill Gaps)</SelectItem>
                                 <SelectItem value="jd">Job Description (Requirements)</SelectItem>
                                 <SelectItem value="hybrid">Hybrid (CV + JD)</SelectItem>
@@ -248,7 +247,6 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 text-purple-400">
                 <p className="text-sm font-medium mb-2">💡 How it works:</p>
                 <ul className="text-xs space-y-1 text-purple-300/80">
-                    <li>• <strong>Profile-Based:</strong> Creates roadmap from your learning goals and preferences</li>
                     <li>• <strong>CV Analysis:</strong> Identifies skill gaps and creates roadmap to fill them</li>
                     <li>• <strong>Job Description:</strong> Generates roadmap to meet specific job requirements</li>
                     <li>• <strong>Hybrid:</strong> Combines CV and JD analysis for targeted skill development</li>
