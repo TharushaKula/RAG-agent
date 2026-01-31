@@ -64,8 +64,8 @@ export class OpenLibraryService {
 
             return this.formatBooks(response.data);
         } catch (error: any) {
-            console.error('Open Library API Error:', error.response?.data || error.message);
-            throw new Error(`Failed to fetch Open Library books: ${error.message}`);
+            console.warn('Open Library API unavailable:', error.message || 'unknown error');
+            return [];
         }
     }
 

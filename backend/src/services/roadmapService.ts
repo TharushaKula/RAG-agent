@@ -269,10 +269,11 @@ export class RoadmapService {
                     ? Math.round((completedResources / totalResources) * 100)
                     : 0;
                 
-                // If all resources completed, mark module as completed
+                // If all resources completed, mark module as completed and unlock next
                 if (module.progress === 100 && module.status !== "completed") {
                     module.status = "completed";
                     module.completedAt = new Date();
+                    this.unlockPrerequisites(roadmap, moduleId);
                 }
                 break;
             }
@@ -313,30 +314,60 @@ export class RoadmapService {
     }
 
     /**
-     * Unlock modules that have prerequisites met
+     * Unlock modules that have prerequisites met, and the next module in order.
+     * - Prerequisite-based: any locked module whose listed prerequisites (by id or by order) are all completed.
+     * - Sequential: the immediately next module in roadmap order is unlocked when one completes.
      */
     private unlockPrerequisites(roadmap: Roadmap, completedModuleId: string): void {
+        const allModulesOrdered = this.getModulesInOrder(roadmap);
+        const completedIndex = allModulesOrdered.findIndex(m => m.id === completedModuleId);
+
+        // 1. Unlock the next module in order (so completing one always unlocks the next)
+        if (completedIndex >= 0 && completedIndex < allModulesOrdered.length - 1) {
+            const nextModule = allModulesOrdered[completedIndex + 1];
+            if (nextModule.status === "locked") {
+                nextModule.status = "available";
+            }
+        }
+
+        // 2. Unlock any locked module whose prerequisites are all completed (by id or by previous-in-order)
         for (const stage of roadmap.stages) {
             for (const module of stage.modules) {
-                if (module.status === "locked" && module.prerequisites) {
-                    // Check if all prerequisites are completed
-                    const allPrerequisitesMet = module.prerequisites.every(prereqId => {
-                        // Find the prerequisite module
-                        for (const s of roadmap.stages) {
-                            const prereqModule = s.modules.find(m => m.id === prereqId);
-                            if (prereqModule) {
-                                return prereqModule.status === "completed";
-                            }
-                        }
-                        return false;
-                    });
-                    
-                    if (allPrerequisitesMet) {
-                        module.status = "available";
-                    }
+                if (module.status !== "locked") continue;
+                const prereqIds = module.prerequisites && module.prerequisites.length > 0
+                    ? module.prerequisites
+                    : null;
+                if (!prereqIds) continue; // already handled by sequential unlock above
+
+                const allPrerequisitesMet = prereqIds.every(prereqId => {
+                    const prereqModule = this.findModuleById(roadmap, prereqId);
+                    return prereqModule ? prereqModule.status === "completed" : false;
+                });
+
+                if (allPrerequisitesMet) {
+                    module.status = "available";
                 }
             }
         }
+    }
+
+    /** Get all modules in roadmap order (by stage order, then module order). */
+    private getModulesInOrder(roadmap: Roadmap): RoadmapModule[] {
+        const list: RoadmapModule[] = [];
+        const stages = [...roadmap.stages].sort((a, b) => a.order - b.order);
+        for (const stage of stages) {
+            const modules = [...(stage.modules || [])].sort((a, b) => a.order - b.order);
+            list.push(...modules);
+        }
+        return list;
+    }
+
+    private findModuleById(roadmap: Roadmap, id: string): RoadmapModule | null {
+        for (const stage of roadmap.stages) {
+            const m = stage.modules.find(mod => mod.id === id);
+            if (m) return m;
+        }
+        return null;
     }
 
     /**

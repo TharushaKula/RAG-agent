@@ -448,11 +448,11 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         category: string,
         profile: UserProfile
     ): Promise<{ title: string; description: string; stages: RoadmapStage[] }> {
-        const GLOBAL_TIMEOUT = 45000; // 45 seconds max for entire enrichment
-        const PER_MODULE_TIMEOUT = 5000; // 5 seconds per module
+        const GLOBAL_TIMEOUT = 60000; // 60 seconds max for entire enrichment
+        const PER_MODULE_TIMEOUT = 12000; // 12 seconds per module so APIs have time to respond
         const startTime = Date.now();
 
-        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Sources: YouTube, MS Learn, MIT OCW, Open Library — unavailable sources are skipped.`);
+        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Sources: YouTube, MS Learn, MIT OCW, Open Library. Each module gets 1–5 resources; fallback link added if APIs return none.`);
 
         const enrichedStages: RoadmapStage[] = [];
         let isFirstModule = true;
@@ -486,13 +486,19 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                                     category,
                                     profile.learningStyles || []
                                 ),
-                                new Promise<LearningResource[]>((resolve) => 
+                                new Promise<LearningResource[]>((resolve) =>
                                     setTimeout(() => resolve([]), PER_MODULE_TIMEOUT)
                                 )
                             ]);
                         } catch (err: any) {
                             console.warn(`⚠️ Resource fetch failed for "${module.title}": ${err.message}`);
                         }
+                    }
+
+                    // Ensure every module has at least 1 resource (max 5); add fallback if none from APIs
+                    resources = resources.slice(0, 5);
+                    if (resources.length === 0) {
+                        resources = [this.createFallbackResource(module.title || "Untitled Module", category)];
                     }
 
                     const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
@@ -508,7 +514,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                         order: module.order || moduleIndex + 1,
                         estimatedTime,
                         estimatedHours,
-                        resources: resources.slice(0, 6), // Limit to 6 resources per module
+                        resources,
                         prerequisites: module.prerequisites || [],
                         progress: 0
                     };
@@ -642,8 +648,24 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Prioritize resources based on learning styles
-        return this.prioritizeResources(resources, learningStyles);
+        // Prioritize resources based on learning styles; cap at 5
+        return this.prioritizeResources(resources, learningStyles).slice(0, 5);
+    }
+
+    /**
+     * Create a fallback learning resource when APIs return none (so every module has at least one).
+     */
+    private createFallbackResource(moduleTitle: string, category: string): LearningResource {
+        const query = encodeURIComponent(`learn ${moduleTitle} ${category} tutorial`);
+        return {
+            id: `fallback-${moduleTitle.toLowerCase().replace(/\s+/g, "-").slice(0, 30)}`,
+            type: "article",
+            title: `Learn more: ${moduleTitle}`,
+            url: `https://www.google.com/search?q=${query}`,
+            description: `Search the web for tutorials and courses on "${moduleTitle}".`,
+            difficulty: "intermediate",
+            completed: false
+        };
     }
 
     /**
