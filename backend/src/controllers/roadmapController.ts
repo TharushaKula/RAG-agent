@@ -1,10 +1,75 @@
 import { Request, Response } from "express";
+import { ObjectId } from "mongodb";
 import { RoadmapService } from "../services/roadmapService";
 import { RoadmapGenerator } from "../services/roadmapGenerator";
 import { getVectorStore } from "../services/ragService";
+import { Roadmap } from "../models/Roadmap";
 import pdf from "pdf-parse";
 
 const roadmapService = new RoadmapService();
+
+/** Convert roadmap (and nested BSON types) to a plain JSON-safe object for HTTP response */
+function roadmapToJSON(roadmap: Roadmap): Record<string, unknown> {
+    const id = roadmap._id instanceof ObjectId ? roadmap._id.toString() : roadmap._id;
+    const userId = roadmap.userId instanceof ObjectId ? roadmap.userId.toString() : roadmap.userId;
+    const createdAt = roadmap.createdAt instanceof Date ? roadmap.createdAt.toISOString() : roadmap.createdAt;
+    const updatedAt = roadmap.updatedAt instanceof Date ? roadmap.updatedAt.toISOString() : roadmap.updatedAt;
+    const stages = (roadmap.stages || []).map((stage) => ({
+        id: stage.id,
+        name: stage.name,
+        description: stage.description,
+        order: stage.order,
+        prerequisites: stage.prerequisites,
+        modules: (stage.modules || []).map((mod) => ({
+            id: mod.id,
+            title: mod.title,
+            description: mod.description,
+            status: mod.status,
+            order: mod.order,
+            estimatedTime: mod.estimatedTime,
+            estimatedHours: mod.estimatedHours,
+            prerequisites: mod.prerequisites,
+            progress: mod.progress,
+            completedAt: mod.completedAt instanceof Date ? mod.completedAt.toISOString() : mod.completedAt,
+            startedAt: mod.startedAt instanceof Date ? mod.startedAt.toISOString() : mod.startedAt,
+            resources: (mod.resources || []).map((r) => ({
+                id: r.id,
+                type: r.type,
+                title: r.title,
+                url: r.url,
+                description: r.description,
+                duration: r.duration,
+                difficulty: r.difficulty,
+                completed: r.completed,
+                completedAt: r.completedAt instanceof Date ? r.completedAt.toISOString() : r.completedAt,
+            })),
+        })),
+    }));
+    const sourceData =
+        roadmap.sourceData && typeof roadmap.sourceData === "object"
+            ? {
+                ...(typeof roadmap.sourceData.cvSource === "string" && { cvSource: roadmap.sourceData.cvSource }),
+                ...(typeof roadmap.sourceData.jdSource === "string" && { jdSource: roadmap.sourceData.jdSource }),
+                ...(typeof roadmap.sourceData.semanticMatchScore === "number" && { semanticMatchScore: roadmap.sourceData.semanticMatchScore }),
+            }
+            : undefined;
+
+    return {
+        _id: id,
+        userId,
+        title: roadmap.title,
+        description: roadmap.description,
+        category: roadmap.category,
+        source: roadmap.source,
+        sourceData,
+        stages,
+        overallProgress: roadmap.overallProgress,
+        estimatedCompletionTime: roadmap.estimatedCompletionTime,
+        createdAt,
+        updatedAt,
+        isActive: roadmap.isActive,
+    };
+}
 
 /**
  * Generate a new roadmap
@@ -98,41 +163,72 @@ export const generateRoadmap = async (req: Request, res: Response) => {
 
         console.log(`✅ Roadmap saved: ${savedRoadmap._id}`);
 
-        res.json({
-            success: true,
-            roadmap: savedRoadmap
-        });
+        // Serialize and send; use manual JSON.stringify so we catch serialization errors and always send JSON
+        if (res.headersSent) return;
+        try {
+            const roadmapJson = roadmapToJSON(savedRoadmap);
+            const payload = { success: true, roadmap: roadmapJson };
+            const body = JSON.stringify(payload);
+            res.setHeader("Content-Type", "application/json");
+            res.status(200).end(body);
+        } catch (sendErr: any) {
+            console.error("Failed to serialize/send roadmap response:", sendErr?.message);
+            if (!res.headersSent) {
+                const idStr = savedRoadmap._id instanceof ObjectId ? savedRoadmap._id.toString() : String(savedRoadmap._id);
+                res.setHeader("Content-Type", "application/json");
+                res.status(200).end(
+                    JSON.stringify({
+                        success: true,
+                        roadmap: { _id: idStr, message: "Roadmap saved; refresh the page to load it." },
+                    })
+                );
+            }
+        }
 
     } catch (error: any) {
         console.error("Roadmap generation error:", error);
         console.error("Error details:", {
-            message: error.message,
-            stack: error.stack,
+            message: error?.message,
+            stack: error?.stack,
             userId,
             source
         });
-        
-        // Provide more specific error messages
-        let errorMessage = error.message || "Failed to generate roadmap";
+
+        // Provide more specific error messages; always return JSON so client gets a parseable body
+        let errorMessage = "Failed to generate roadmap";
+        try {
+            errorMessage = typeof error?.message === "string" ? error.message : String(error) || errorMessage;
+        } catch (_) {}
         let statusCode = 500;
-        
-        // Check for common errors
-        if (error.message?.includes("Ollama service is not available")) {
-            statusCode = 503; // Service Unavailable
+
+        if (errorMessage.includes("Ollama service is not available")) {
+            statusCode = 503;
             errorMessage = "Ollama AI service is not running. Please start Ollama (ollama serve) and ensure the model is available.";
-        } else if (error.message?.includes("No JSON found in LLM response")) {
+        } else if (errorMessage.includes("No JSON found in LLM response")) {
             errorMessage = "AI model did not return valid roadmap data. Please check Ollama model configuration.";
-        } else if (error.message?.includes("timeout")) {
+        } else if (errorMessage.toLowerCase().includes("timeout")) {
             errorMessage = "Roadmap generation timed out. The AI model may be too slow. Try a faster model or increase timeout.";
+        } else if (errorMessage.includes("CV not found") || errorMessage.includes("Job description not found")) {
+            statusCode = 404;
+        } else if (errorMessage.includes("Unauthorized") || errorMessage.includes("user not found")) {
+            statusCode = 401;
         }
-        
-        res.status(statusCode).json({
-            error: "Failed to generate roadmap",
-            message: errorMessage,
-            details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-            userId: userId,
-            source: source
-        });
+
+        try {
+            const details = process.env.NODE_ENV === "development" && error?.stack ? String(error.stack) : undefined;
+            res.status(statusCode).json({
+                error: "Failed to generate roadmap",
+                message: errorMessage,
+                ...(details ? { details } : {}),
+                userId: userId ?? undefined,
+                source: source ?? undefined
+            });
+        } catch (sendErr: any) {
+            console.error("Failed to send error response:", sendErr?.message);
+            if (!res.headersSent) {
+                res.status(500).json({ error: "Failed to generate roadmap", message: errorMessage });
+            }
+        }
     }
 };
 

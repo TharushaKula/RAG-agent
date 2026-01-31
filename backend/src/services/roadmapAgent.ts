@@ -7,6 +7,7 @@ import { YouTubeService } from "./youtubeService";
 import { MicrosoftLearnService } from "./microsoftLearnService";
 import { MITOCWService } from "./mitOcwService";
 import { OpenLibraryService } from "./openLibraryService";
+import { RoadmapValidatorAgent } from "./roadmapValidatorAgent";
 import axios from "axios";
 
 interface UserProfile {
@@ -37,6 +38,7 @@ export class RoadmapAgent {
     private microsoftLearnService: MicrosoftLearnService;
     private mitOcwService: MITOCWService;
     private openLibraryService: OpenLibraryService;
+    private validatorAgent: RoadmapValidatorAgent;
 
     constructor(ollamaBaseUrl: string = "http://127.0.0.1:11434", ollamaModel: string = "gpt-oss:20b-cloud") {
         // Initialize LLM with same configuration as chatController
@@ -46,11 +48,14 @@ export class RoadmapAgent {
             temperature: 0.7, // Balanced creativity and consistency
         });
 
-        // Initialize learning material services
+        // Initialize learning material services (YouTube, MS Learn, MIT OCW, Open Library / Books)
         this.youtubeService = new YouTubeService();
         this.microsoftLearnService = new MicrosoftLearnService();
         this.mitOcwService = new MITOCWService();
         this.openLibraryService = new OpenLibraryService();
+
+        // Second agent: validates roadmap and provides feedback for refinement
+        this.validatorAgent = new RoadmapValidatorAgent(ollamaBaseUrl, ollamaModel);
     }
 
     /**
@@ -72,6 +77,64 @@ export class RoadmapAgent {
     }
 
     /**
+     * Determine learning/career category using AI from CV or JD text.
+     * Supports many domains: frontend, backend, data-science, devops, fullstack,
+     * business-analytics, qa, project-management, product-management, design, cybersecurity, etc.
+     */
+    async determineCategoryWithAI(text: string): Promise<string> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            [
+                "system",
+                `You are a career and learning path classifier. Given a job description or CV/resume text, choose the single best learning category for a personalized roadmap.
+
+Choose exactly ONE category from this list (use the slug as-is):
+- frontend (web UI, React, Vue, Angular, CSS, JavaScript/TypeScript)
+- backend (APIs, servers, databases, Node, Python, Java backends)
+- fullstack (both frontend and backend)
+- data-science (data analysis, ML, AI, Python, pandas, statistics)
+- business-analytics (BI, reporting, SQL, Tableau, Power BI, analytics)
+- devops (CI/CD, Docker, Kubernetes, cloud, infrastructure)
+- qa (quality assurance, testing, test automation, Selenium)
+- project-management (agile, scrum, PMP, delivery, planning)
+- product-management (product, roadmap, stakeholders, UX collaboration)
+- design (UX, UI design, Figma, user research)
+- cybersecurity (security, penetration testing, compliance)
+- mobile (iOS, Android, React Native, Flutter)
+- general (if none of the above fit clearly)
+
+Respond with valid JSON only: {{ "category": "slug", "reason": "one short sentence why" }} using one of the slugs above.`,
+            ],
+            ["user", "Classify this text:\n\n{text}\n\nRespond with JSON only: {{ \"category\": \"slug\", \"reason\": \"one short sentence why\" }}"],
+        ]);
+        const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
+        const timeoutMs = 15000;
+        try {
+            const response = (await Promise.race([
+                chain.invoke({ text: text.slice(0, 3000) }),
+                new Promise<string>((_, reject) =>
+                    setTimeout(() => reject(new Error("Category classification timed out")), timeoutMs)
+                ),
+            ])) as string;
+            const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const match = cleaned.match(/\{[\s\S]*\}/);
+            if (match) {
+                const parsed = JSON.parse(match[0]);
+                const slug = typeof parsed?.category === "string" ? parsed.category.trim().toLowerCase().replace(/\s+/g, "-") : "";
+                const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : "";
+                if (slug && /^[a-z0-9-]+$/.test(slug)) {
+                    console.log(`📂 Category: ${slug} — Why: ${reason || "(no reason given)"}`);
+                    return slug;
+                }
+            }
+        } catch (err: any) {
+            console.warn("Category AI classification failed, using fallback:", err?.message || err);
+        }
+        const fallbackSlug = this.determineCategoryFromSkills(text);
+        console.log(`📂 Category: ${fallbackSlug} (fallback from keywords — AI classification failed)`);
+        return fallbackSlug;
+    }
+
+    /**
      * Generate roadmap from CV analysis
      */
     async generateFromCV(
@@ -81,7 +144,7 @@ export class RoadmapAgent {
         skillGaps?: SkillGap[]
     ): Promise<Roadmap> {
         const context = this.buildCVContext(cvText, skillGaps, profile);
-        const category = this.determineCategoryFromSkills(cvText);
+        const category = await this.determineCategoryWithAI(cvText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -109,7 +172,7 @@ export class RoadmapAgent {
         jdText: string
     ): Promise<Roadmap> {
         const context = this.buildJDContext(jdText, profile);
-        const category = this.determineCategoryFromSkills(jdText);
+        const category = await this.determineCategoryWithAI(jdText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -140,7 +203,7 @@ export class RoadmapAgent {
         semanticMatchScore?: number
     ): Promise<Roadmap> {
         const context = this.buildHybridContext(cvText, jdText, skillGaps, profile);
-        const category = this.determineCategoryFromSkills(jdText);
+        const category = await this.determineCategoryWithAI(jdText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -283,7 +346,82 @@ Return ONLY valid JSON, no additional text.`
             }
 
             console.log(`✅ AI generated ${roadmapData.stages.length} stages`);
-            
+
+            // Second agent: validate roadmap; if invalid, refine up to MAX_REFINEMENT_ROUNDS times
+            try {
+                const MAX_REFINEMENT_ROUNDS = 2;
+                const refinementPrompt = ChatPromptTemplate.fromMessages([
+                    ["system", `You are an expert AI learning path architect. Your task is to create comprehensive, personalized learning roadmaps. You must respond with valid JSON only (title, description, stages with modules as previously specified).`],
+                    [
+                        "user",
+                        `Previous roadmap was rejected by the validator. Fix the roadmap and return ONLY valid JSON.
+
+Original context:
+{context}
+
+Validator feedback (you must address these):
+{feedback}
+
+Generate the corrected roadmap. Same JSON structure: title, description, stages (each with id, name, description, order, modules array). Each module: id, title, description, order, estimatedHours, prerequisites. Return ONLY valid JSON, no other text.`
+                    ],
+                ]);
+                const refinementChain = RunnableSequence.from([refinementPrompt, this.llm, new StringOutputParser()]);
+
+                for (let round = 0; round <= MAX_REFINEMENT_ROUNDS; round++) {
+                    let validationResult: { valid: boolean; issues?: string[]; feedback?: string };
+                    try {
+                        validationResult = await this.validatorAgent.validate(
+                            roadmapData,
+                            context,
+                            category,
+                            source
+                        );
+                    } catch (validatorErr: any) {
+                        console.warn("Validator error, skipping refinement:", validatorErr?.message || validatorErr);
+                        break;
+                    }
+                    if (validationResult.valid) {
+                        if (round > 0) {
+                            console.log(`✅ Roadmap accepted after ${round} refinement(s)`);
+                        }
+                        break;
+                    }
+                    if (!validationResult.feedback || round === MAX_REFINEMENT_ROUNDS) {
+                        if (round > 0) {
+                            console.log(`⚠️ Using roadmap after ${round} refinement(s); validator still had concerns`);
+                        }
+                        break;
+                    }
+                    console.log(`🔍 Validator round ${round + 1}: ${validationResult.issues?.join("; ") || validationResult.feedback}`);
+                    let refinementResponse: string;
+                    try {
+                        refinementResponse = await Promise.race([
+                            refinementChain.invoke({ context, feedback: validationResult.feedback }),
+                            timeoutPromise,
+                        ]) as string;
+                    } catch (refineErr: any) {
+                        console.warn("Refinement error, using current roadmap:", refineErr?.message || refineErr);
+                        break;
+                    }
+                    const refineText = refinementResponse.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+                    const refineMatch = refineText.match(/\{[\s\S]*\}/);
+                    if (refineMatch) {
+                        try {
+                            const refined = JSON.parse(refineMatch[0]);
+                            if (refined.stages && Array.isArray(refined.stages) && refined.stages.length > 0) {
+                                roadmapData = refined;
+                            }
+                        } catch (_) {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            } catch (validationLoopErr: any) {
+                console.warn("Validation/refinement loop error, continuing with current roadmap:", validationLoopErr?.message || validationLoopErr);
+            }
+
             // Validate and enrich with resources
             return await this.enrichRoadmapWithResources(roadmapData, category, profile);
         } catch (error: any) {
@@ -314,7 +452,7 @@ Return ONLY valid JSON, no additional text.`
         const PER_MODULE_TIMEOUT = 5000; // 5 seconds per module
         const startTime = Date.now();
 
-        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s)...`);
+        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Sources: YouTube, MS Learn, MIT OCW, Open Library — unavailable sources are skipped.`);
 
         const enrichedStages: RoadmapStage[] = [];
         let isFirstModule = true;
@@ -420,7 +558,8 @@ Return ONLY valid JSON, no additional text.`
     }
 
     /**
-     * Fetch learning resources from multiple services
+     * Fetch learning resources from all available APIs (YouTube, MS Learn, MIT OCW, Open Library/Books).
+     * Uses all APIs in parallel so each module gets a mix of videos, courses, articles, and books.
      */
     private async fetchLearningResources(
         moduleTitle: string,
@@ -738,28 +877,21 @@ Create a focused roadmap that bridges the gap between current skills and job req
     }
 
     /**
-     * Determine category from skills text
+     * Fallback: determine category from keyword matching when AI classification fails.
      */
     private determineCategoryFromSkills(skillsText: string): string {
         const text = skillsText.toLowerCase();
-        
-        if (text.match(/\b(react|vue|angular|frontend|ui|ux|css|html|javascript|typescript)\b/)) {
-            return "frontend";
-        }
-        if (text.match(/\b(node|backend|api|server|database|sql|nosql|express|fastapi)\b/)) {
-            return "backend";
-        }
-        if (text.match(/\b(python|data|machine learning|ai|ml|data science|pandas|numpy|tensorflow)\b/)) {
-            return "data-science";
-        }
-        if (text.match(/\b(devops|docker|kubernetes|aws|azure|cloud|terraform|ci\/cd)\b/)) {
-            return "devops";
-        }
-        if (text.match(/\b(full.?stack|fullstack|mern|mean|web development)\b/)) {
-            return "fullstack";
-        }
-        
-        return "frontend"; // Default
+        if (text.match(/\b(react|vue|angular|frontend|ui|ux|css|html|javascript|typescript)\b/)) return "frontend";
+        if (text.match(/\b(node|backend|api|server|database|sql|nosql|express|fastapi)\b/)) return "backend";
+        if (text.match(/\b(python|data|machine learning|ai|ml|data science|pandas|numpy|tensorflow)\b/)) return "data-science";
+        if (text.match(/\b(devops|docker|kubernetes|aws|azure|cloud|terraform|ci\/cd)\b/)) return "devops";
+        if (text.match(/\b(full.?stack|fullstack|mern|mean|web development)\b/)) return "fullstack";
+        if (text.match(/\b(analytics|bi|tableau|power bi|reporting|business intelligence)\b/)) return "business-analytics";
+        if (text.match(/\b(qa|testing|selenium|test automation|quality assurance)\b/)) return "qa";
+        if (text.match(/\b(project management|agile|scrum|pmp|delivery)\b/)) return "project-management";
+        if (text.match(/\b(product management|product owner|roadmap)\b/)) return "product-management";
+        if (text.match(/\b(security|cybersecurity|penetration|compliance)\b/)) return "cybersecurity";
+        return "general";
     }
 
     /**

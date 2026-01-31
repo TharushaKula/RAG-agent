@@ -112,7 +112,14 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                     "data:", JSON.stringify(data)
                 );
 
-                toast.error(message);
+                // 500 "Internal Server Error" often means proxy timed out while backend succeeded
+                const likelyTimeout = res.status === 500 && (rawBody === "Internal Server Error" || !data);
+                if (likelyTimeout) {
+                    toast.warning("Request got a server error, but your roadmap may have been created. Refreshing your roadmaps…");
+                    onGenerated(); // Refresh roadmap list so user can see new roadmap if it was saved
+                } else {
+                    toast.error(message);
+                }
                 return;
             }
 

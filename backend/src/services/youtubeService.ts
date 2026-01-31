@@ -17,6 +17,10 @@ interface YouTubeSearchResponse {
     nextPageToken?: string;
 }
 
+// Log quota/availability once per process to avoid spamming when YouTube is used per-module
+let youtubeQuotaLogged = false;
+let youtubeErrorLogged = false;
+
 export class YouTubeService {
     private apiKey: string;
     private client: AxiosInstance;
@@ -71,8 +75,16 @@ export class YouTubeService {
 
             return this.formatVideos(response.data.items, detailsResponse.data.items);
         } catch (error: any) {
-            console.error('YouTube API Error:', error.response?.data || error.message);
-            throw new Error(`Failed to fetch YouTube videos: ${error.message}`);
+            const status = error.response?.status;
+            const isQuota = status === 403 || error.response?.data?.error?.message?.toLowerCase().includes('quota');
+            if (isQuota && !youtubeQuotaLogged) {
+                youtubeQuotaLogged = true;
+                console.warn('⚠️ YouTube API quota exceeded; video results will be skipped. Other sources (MS Learn, MIT OCW, Books) will still be used.');
+            } else if (!isQuota && !youtubeErrorLogged) {
+                youtubeErrorLogged = true;
+                console.warn('⚠️ YouTube API unavailable:', error.message || 'unknown error');
+            }
+            return [];
         }
     }
 
@@ -142,8 +154,11 @@ export class YouTubeService {
 
             return this.formatVideos(response.data.items, response.data.items);
         } catch (error: any) {
-            console.error('YouTube API Error:', error.response?.data || error.message);
-            throw new Error(`Failed to fetch popular videos: ${error.message}`);
+            if (!youtubeErrorLogged) {
+                youtubeErrorLogged = true;
+                console.warn('⚠️ YouTube API unavailable:', error.message || 'unknown error');
+            }
+            return [];
         }
     }
 
