@@ -452,7 +452,9 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         const PER_MODULE_TIMEOUT = 12000; // 12 seconds per module so APIs have time to respond
         const startTime = Date.now();
 
-        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Sources: YouTube, MS Learn, MIT OCW, Open Library. Each module gets 1–5 resources; fallback link added if APIs return none.`);
+        const learningStyles = profile.learningStyles?.length ? profile.learningStyles.join(", ") : "not set";
+        const timeAvailability = profile.timeAvailability || "moderate";
+        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Profile: learning styles [${learningStyles}], time [${timeAvailability}]. Recommending 1–5 resources per module based on profile.`);
 
         const enrichedStages: RoadmapStage[] = [];
         let isFirstModule = true;
@@ -484,7 +486,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                                     module.title,
                                     module.description || '',
                                     category,
-                                    profile.learningStyles || []
+                                    profile
                                 ),
                                 new Promise<LearningResource[]>((resolve) =>
                                     setTimeout(() => resolve([]), PER_MODULE_TIMEOUT)
@@ -564,26 +566,31 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
     }
 
     /**
-     * Fetch learning resources from all available APIs (YouTube, MS Learn, MIT OCW, Open Library/Books).
-     * Uses all APIs in parallel so each module gets a mix of videos, courses, articles, and books.
+     * Fetch learning resources from all available APIs, then recommend based on user profile.
+     * - Learning style: prefer resource types that match (visual→video/course, reading→article/book, hands-on→course, audio→video).
+     * - Time availability: prefer shorter resources for minimal time, allow longer for intensive/fulltime.
      */
     private async fetchLearningResources(
         moduleTitle: string,
         moduleDescription: string,
         category: string,
-        learningStyles: string[]
+        profile: UserProfile
     ): Promise<LearningResource[]> {
         const resources: LearningResource[] = [];
         const searchQuery = `${moduleTitle} ${category}`;
+        const learningStyles = profile.learningStyles || [];
+        const timeAvailability = profile.timeAvailability || "moderate";
 
-        // Fetch from multiple sources in parallel
+        // Request counts per source based on primary learning style (so we get more of preferred types)
+        const counts = this.getRecommendedSourceCounts(learningStyles);
+
         const [youtubeVideos, msLearnResources, mitCourses, books] = await Promise.allSettled([
             this.youtubeService.isConfigured()
-                ? this.youtubeService.searchVideos(searchQuery, 3).catch(() => [])
+                ? this.youtubeService.searchVideos(searchQuery, counts.youtube).catch(() => [])
                 : Promise.resolve([]),
-            this.microsoftLearnService.searchResources(searchQuery, 3).catch(() => []),
-            this.mitOcwService.searchCourses(searchQuery, 2).catch(() => []),
-            this.openLibraryService.searchBooks(searchQuery, 2).catch(() => [])
+            this.microsoftLearnService.searchResources(searchQuery, counts.msLearn).catch(() => []),
+            this.mitOcwService.searchCourses(searchQuery, counts.mit).catch(() => []),
+            this.openLibraryService.searchBooks(searchQuery, counts.books).catch(() => [])
         ]);
 
         // Process YouTube videos
@@ -648,8 +655,126 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Prioritize resources based on learning styles; cap at 5
-        return this.prioritizeResources(resources, learningStyles).slice(0, 5);
+        // Recommend by profile, then ensure mix of types: videos + courses + books (not only videos)
+        const scored = this.recommendByProfile(resources, learningStyles, timeAvailability);
+        return this.selectWithDiversity(scored, 5);
+    }
+
+    /**
+     * Select up to maxResources ensuring a mix: videos, courses/articles, and books when available.
+     * - Max 2 videos so we don't fill all slots with YouTube.
+     * - At least 1 course or article (MS Learn, MIT OCW) when available.
+     * - At least 1 book when available.
+     */
+    private selectWithDiversity(resources: LearningResource[], maxResources: number): LearningResource[] {
+        if (resources.length <= maxResources) return resources.slice(0, maxResources);
+
+        const videos = resources.filter(r => r.type === "video");
+        const coursesOrArticles = resources.filter(r => r.type === "course" || r.type === "article");
+        const books = resources.filter(r => r.type === "book");
+        const pickedIds = new Set<string>();
+        const result: LearningResource[] = [];
+
+        // Add up to 2 videos (so we don't get only YouTube)
+        for (const r of videos.slice(0, 2)) {
+            result.push(r);
+            pickedIds.add(r.id);
+        }
+        // Add at least 1 course/article when available
+        for (const r of coursesOrArticles.slice(0, 2)) {
+            if (result.length >= maxResources) break;
+            if (!pickedIds.has(r.id)) {
+                result.push(r);
+                pickedIds.add(r.id);
+            }
+        }
+        // Add at least 1 book when available
+        for (const r of books.slice(0, 1)) {
+            if (result.length >= maxResources) break;
+            if (!pickedIds.has(r.id)) {
+                result.push(r);
+                pickedIds.add(r.id);
+            }
+        }
+        // Fill remaining slots by original order (already scored)
+        for (const r of resources) {
+            if (result.length >= maxResources) break;
+            if (!pickedIds.has(r.id)) {
+                result.push(r);
+                pickedIds.add(r.id);
+            }
+        }
+        return result.slice(0, maxResources);
+    }
+
+    /**
+     * Get per-source request counts. Always request courses (MS Learn, MIT) and books so we can show a mix.
+     */
+    private getRecommendedSourceCounts(learningStyles: string[]): { youtube: number; msLearn: number; mit: number; books: number } {
+        const styles = learningStyles.map(s => s.toLowerCase());
+        for (const s of styles) {
+            if (s === "visual" || s === "audio") return { youtube: 3, msLearn: 2, mit: 2, books: 2 };
+            if (s === "reading") return { youtube: 1, msLearn: 2, mit: 2, books: 2 };
+            if (s === "hands-on") return { youtube: 1, msLearn: 3, mit: 2, books: 2 };
+        }
+        return { youtube: 2, msLearn: 2, mit: 2, books: 2 };
+    }
+
+    /**
+     * Parse duration string to approximate minutes (e.g. "5:30" -> 5, "1h 30m" -> 90, "N/A" -> null).
+     */
+    private parseDurationToMinutes(duration: string | undefined): number | null {
+        if (!duration || duration === "N/A") return null;
+        const d = duration.trim().toLowerCase();
+        let minutes = 0;
+        const hourMatch = d.match(/(\d+)\s*h/);
+        if (hourMatch) minutes += parseInt(hourMatch[1], 10) * 60;
+        const minMatch = d.match(/(\d+)\s*m/);
+        if (minMatch) minutes += parseInt(minMatch[1], 10);
+        const colonMatch = d.match(/^(\d+):(\d+)/);
+        if (colonMatch && !hourMatch) minutes = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
+        if (minutes > 0) return minutes;
+        return null;
+    }
+
+    /**
+     * Score resource by time availability: prefer shorter for minimal, allow longer for fulltime.
+     */
+    private getTimeSuitabilityScore(resource: LearningResource, timeAvailability: string): number {
+        const mins = this.parseDurationToMinutes(resource.duration);
+        if (mins == null) return 0.5; // unknown duration: neutral
+        const limits: Record<string, number> = {
+            minimal: 20,   // prefer ≤ 20 min
+            moderate: 45,  // prefer ≤ 45 min
+            intensive: 90,
+            fulltime: 999
+        };
+        const limit = limits[timeAvailability] ?? 45;
+        if (mins <= limit) return 1;
+        if (mins <= limit * 2) return 0.5;
+        return 0.2;
+    }
+
+    /**
+     * Rank resources by user profile: learning style first, then time suitability.
+     */
+    private recommendByProfile(
+        resources: LearningResource[],
+        learningStyles: string[],
+        timeAvailability: string
+    ): LearningResource[] {
+        return resources
+            .map(r => ({
+                resource: r,
+                styleScore: this.getLearningStyleScore(r, learningStyles),
+                timeScore: this.getTimeSuitabilityScore(r, timeAvailability)
+            }))
+            .sort((a, b) => {
+                const styleA = a.styleScore, styleB = b.styleScore;
+                if (styleB !== styleA) return styleB - styleA;
+                return b.timeScore - a.timeScore;
+            })
+            .map(x => x.resource);
     }
 
     /**
