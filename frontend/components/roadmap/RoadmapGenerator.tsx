@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
+import { RoadmapProgress } from "./RoadmapProgress";
 
 interface RoadmapGeneratorProps {
     onGenerated: () => void;
@@ -16,11 +17,12 @@ interface RoadmapGeneratorProps {
 
 export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProps) {
     const { token } = useAuth();
-    const [source, setSource] = useState<"cv" | "jd" | "hybrid">("cv");
+    const [source, setSource] = useState<"cv" | "hybrid">("cv");
     const [availableFiles, setAvailableFiles] = useState<{ cv: string[], jd: string[] }>({ cv: [], jd: [] });
     const [selectedCV, setSelectedCV] = useState<string>("");
     const [selectedJD, setSelectedJD] = useState<string>("");
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isComplete, setIsComplete] = useState(false); // Tracks actual backend completion
 
     // Fetch available files for CV/JD/hybrid
     useEffect(() => {
@@ -61,12 +63,14 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
             toast.error("Please select a CV for CV or hybrid roadmap");
             return;
         }
-        if ((source === "jd" || source === "hybrid") && !selectedJD) {
-            toast.error("Please select a Job Description for JD or hybrid roadmap");
+        if (source === "hybrid" && !selectedJD) {
+            toast.error("Please select a Job Description for hybrid roadmap");
             return;
         }
 
         setIsGenerating(true);
+        setIsComplete(false); // Reset completion state
+        
         try {
             toast.info("Generating your personalized roadmap... This may take a moment.");
 
@@ -74,7 +78,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
             if (source === "cv" || source === "hybrid") {
                 body.cvSource = selectedCV;
             }
-            if (source === "jd" || source === "hybrid") {
+            if (source === "hybrid") {
                 body.jdSource = selectedJD;
             }
 
@@ -98,6 +102,9 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                 rawBody = await res.text();
             }
 
+            // Mark as complete - this triggers the progress bar to go to 100%
+            setIsComplete(true);
+
             if (!res.ok) {
                 const message =
                     data?.message ||
@@ -116,21 +123,33 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                 const likelyTimeout = res.status === 500 && (rawBody === "Internal Server Error" || !data);
                 if (likelyTimeout) {
                     toast.warning("Request got a server error, but your roadmap may have been created. Refreshing your roadmaps…");
-                    onGenerated(); // Refresh roadmap list so user can see new roadmap if it was saved
+                    // Wait for progress animation to complete before calling onGenerated
+                    setTimeout(() => {
+                        setIsGenerating(false);
+                        setIsComplete(false);
+                        onGenerated();
+                    }, 1500);
                 } else {
                     toast.error(message);
+                    setIsGenerating(false);
+                    setIsComplete(false);
                 }
                 return;
             }
 
             toast.success("Roadmap generated successfully! 🎉");
-            onGenerated();
+            // Wait for the progress bar to show 100% before navigating away
+            setTimeout(() => {
+                setIsGenerating(false);
+                setIsComplete(false);
+                onGenerated();
+            }, 1500);
         } catch (error) {
             console.error("Roadmap generation error:", error);
             const errorMessage = error instanceof Error ? error.message : "Failed to generate roadmap";
             toast.error(errorMessage);
-        } finally {
             setIsGenerating(false);
+            setIsComplete(false);
         }
     };
 
@@ -143,7 +162,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                         Generate Learning Roadmap
                     </h1>
                     <p className="text-muted-foreground">
-                        Create a personalized learning path based on your CV, job description, or both.
+                        Create a personalized learning path based on your CV or hybrid (CV + job description).
                     </p>
                 </div>
                 <Button
@@ -151,12 +170,27 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                     size="icon"
                     onClick={onCancel}
                     className="text-white/60 hover:text-white"
+                    disabled={isGenerating}
                 >
                     <X className="h-5 w-5" />
                 </Button>
             </div>
 
-            <Card className="bg-black/20 backdrop-blur-xl border-white/10 text-white shadow-2xl">
+            {/* Show progress bar when generating */}
+            {isGenerating && (
+                <RoadmapProgress 
+                    isGenerating={isGenerating}
+                    isComplete={isComplete}
+                    onComplete={() => {
+                        // Progress animation complete
+                        console.log("Progress animation completed - backend finished!");
+                    }}
+                />
+            )}
+
+            {/* Show form only when not generating */}
+            {!isGenerating && (
+                <Card className="bg-black/20 backdrop-blur-xl border-white/10 text-white shadow-2xl">
                 <CardHeader>
                     <CardTitle>Roadmap Source</CardTitle>
                     <CardDescription className="text-white/60">
@@ -172,7 +206,6 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="cv">CV Analysis (Skill Gaps)</SelectItem>
-                                <SelectItem value="jd">Job Description (Requirements)</SelectItem>
                                 <SelectItem value="hybrid">Hybrid (CV + JD)</SelectItem>
                             </SelectContent>
                         </Select>
@@ -202,7 +235,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                         </div>
                     )}
 
-                    {(source === "jd" || source === "hybrid") && (
+                    {source === "hybrid" && (
                         <div className="space-y-2">
                             <Label>Select Job Description</Label>
                             {availableFiles.jd.length > 0 ? (
@@ -231,9 +264,8 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                             onClick={handleGenerate}
                             disabled={isGenerating || 
                                 (source === "cv" && !selectedCV) ||
-                                (source === "jd" && !selectedJD) ||
                                 (source === "hybrid" && (!selectedCV || !selectedJD))}
-                            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-900/20"
+                            className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-900/20"
                         >
                             {isGenerating ? (
                                 <>
@@ -250,15 +282,18 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                     </div>
                 </CardContent>
             </Card>
+            )}
 
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 text-purple-400">
-                <p className="text-sm font-medium mb-2">💡 How it works:</p>
-                <ul className="text-xs space-y-1 text-purple-300/80">
-                    <li>• <strong>CV Analysis:</strong> Identifies skill gaps and creates roadmap to fill them</li>
-                    <li>• <strong>Job Description:</strong> Generates roadmap to meet specific job requirements</li>
-                    <li>• <strong>Hybrid:</strong> Combines CV and JD analysis for targeted skill development</li>
-                </ul>
-            </div>
+            {/* Info card - show only when not generating */}
+            {!isGenerating && (
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 text-purple-400">
+                    <p className="text-sm font-medium mb-2">💡 How it works:</p>
+                    <ul className="text-xs space-y-1 text-purple-300/80">
+                        <li>• <strong>CV Analysis:</strong> Identifies skill gaps and creates roadmap to fill them</li>
+                        <li>• <strong>Hybrid:</strong> Combines CV and JD analysis for targeted skill development</li>
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }

@@ -87,8 +87,8 @@ export const generateRoadmap = async (req: Request, res: Response) => {
         const reqSource = req.body.source;
         source = reqSource;
 
-        if (!source || !["cv", "jd", "hybrid"].includes(source)) {
-            return res.status(400).json({ error: "Invalid source. Must be: cv, jd, or hybrid" });
+        if (!source || !["cv", "hybrid"].includes(source)) {
+            return res.status(400).json({ error: "Invalid source. Must be: cv or hybrid" });
         }
 
         console.log(`🛣️ Generating roadmap for user ${userId}, source: ${source}`);
@@ -127,8 +127,8 @@ export const generateRoadmap = async (req: Request, res: Response) => {
             }
         }
 
-        // Get JD text if needed
-        if (source === "jd" || source === "hybrid") {
+        // Get JD text if needed (hybrid only)
+        if (source === "hybrid") {
             if (jdSource) {
                 const vectorStore = await getVectorStore();
                 const collection = (vectorStore as any).collection;
@@ -149,13 +149,13 @@ export const generateRoadmap = async (req: Request, res: Response) => {
                     .join("\n\n");
                 inputData.jdSource = jdSource;
             } else {
-                return res.status(400).json({ error: "JD source is required for JD or hybrid roadmap" });
+                return res.status(400).json({ error: "JD source is required for hybrid roadmap" });
             }
         }
 
         // Generate roadmap
         console.log(`⚙️ Starting roadmap generation...`);
-        const roadmap = await generator.generateRoadmap(userId, source as "cv" | "jd" | "hybrid", inputData);
+        const roadmap = await generator.generateRoadmap(userId, source as "cv" | "hybrid", inputData);
         console.log(`📋 Roadmap generated, saving to database...`);
 
         // Save to database

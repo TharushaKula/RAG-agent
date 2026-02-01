@@ -40,7 +40,7 @@ export class RoadmapGenerator {
      */
     async generateRoadmap(
         userId: string,
-        source: "cv" | "jd" | "hybrid",
+        source: "cv" | "hybrid",
         inputData: {
             profile?: UserProfile;
             cvText?: string;
@@ -70,10 +70,6 @@ export class RoadmapGenerator {
             case "cv":
                 if (!inputData.cvText) throw new Error("CV text is required");
                 roadmap = await this.generateFromCV(userId, userProfile, inputData.cvText);
-                break;
-            case "jd":
-                if (!inputData.jdText) throw new Error("Job description text is required");
-                roadmap = await this.generateFromJD(userId, userProfile, inputData.jdText);
                 break;
             case "hybrid":
                 if (!inputData.cvText || !inputData.jdText) {
@@ -106,19 +102,6 @@ export class RoadmapGenerator {
         
         // Use AI-powered Roadmap Agent
         const roadmap = await this.roadmapAgent.generateFromCV(userId, profile, cvText, skillGaps);
-        
-        // Ensure userId is ObjectId
-        roadmap.userId = new ObjectId(userId);
-        
-        return roadmap;
-    }
-
-    /**
-     * Generate roadmap from job description using AI Agent
-     */
-    private async generateFromJD(userId: string, profile: UserProfile, jdText: string): Promise<Roadmap> {
-        // Use AI-powered Roadmap Agent
-        const roadmap = await this.roadmapAgent.generateFromJD(userId, profile, jdText);
         
         // Ensure userId is ObjectId
         roadmap.userId = new ObjectId(userId);

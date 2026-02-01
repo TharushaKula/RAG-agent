@@ -8,6 +8,8 @@ import { MicrosoftLearnService } from "./microsoftLearnService";
 import { MITOCWService } from "./mitOcwService";
 import { OpenLibraryService } from "./openLibraryService";
 import { RoadmapValidatorAgent } from "./roadmapValidatorAgent";
+import { getVectorStore } from "./ragService";
+import clientPromise from "../config/db";
 import axios from "axios";
 
 interface UserProfile {
@@ -24,12 +26,22 @@ interface SkillGap {
     requiredLevel: number;
 }
 
+interface CategoryResult {
+    category: string;
+    reason: string;
+    confidence: number;
+    similarProfiles?: Array<{
+        content: string;
+        similarity: number;
+        metadata: any;
+    }>;
+}
+
 /**
  * Intelligent Roadmap Generation Agent using LangChain
  * 
  * This agent uses AI to generate personalized learning roadmaps based on:
  * - CV analysis and skill gaps
- * - Job description requirements
  * - Hybrid analysis combining CV and JD
  */
 export class RoadmapAgent {
@@ -77,17 +89,25 @@ export class RoadmapAgent {
     }
 
     /**
-     * Determine learning/career category using AI from CV or JD text.
-     * Supports many domains: frontend, backend, data-science, devops, fullstack,
-     * business-analytics, qa, project-management, product-management, design, cybersecurity, etc.
+     * Determine learning/career category using RAG-enhanced AI classification.
+     * This method uses the vector database to find similar CVs/JDs and provides
+     * context to the AI for better, data-driven category determination.
      */
-    async determineCategoryWithAI(text: string): Promise<string> {
-        const prompt = ChatPromptTemplate.fromMessages([
-            [
-                "system",
-                `You are a career and learning path classifier. Given a job description or CV/resume text, choose the single best learning category for a personalized roadmap.
+    async determineCategoryWithRAG(text: string, userId?: string): Promise<CategoryResult> {
+        try {
+            // Step 1: Retrieve similar documents from vector database
+            const similarDocs = await this.fetchSimilarProfiles(text, 5);
+            
+            // Step 2: Build RAG context from similar documents
+            const ragContext = this.buildRAGContext(similarDocs);
+            
+            // Step 3: Enhanced AI prompt with RAG context
+            const prompt = ChatPromptTemplate.fromMessages([
+                [
+                    "system",
+                    `You are a career and learning path classifier. Analyze the input text AND learn from similar profiles in our database.
 
-Choose exactly ONE category from this list (use the slug as-is):
+Available categories (use the slug as-is):
 - frontend (web UI, React, Vue, Angular, CSS, JavaScript/TypeScript)
 - backend (APIs, servers, databases, Node, Python, Java backends)
 - fullstack (both frontend and backend)
@@ -102,36 +122,144 @@ Choose exactly ONE category from this list (use the slug as-is):
 - mobile (iOS, Android, React Native, Flutter)
 - general (if none of the above fit clearly)
 
-Respond with valid JSON only: {{ "category": "slug", "reason": "one short sentence why" }} using one of the slugs above.`,
-            ],
-            ["user", "Classify this text:\n\n{text}\n\nRespond with JSON only: {{ \"category\": \"slug\", \"reason\": \"one short sentence why\" }}"],
-        ]);
-        const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
-        const timeoutMs = 15000;
-        try {
-            const response = (await Promise.race([
+${ragContext ? `Here are similar profiles from our database for context:\n${ragContext}\n` : ''}
+
+Instructions:
+1. Analyze the input text for skills, experience, and goals
+2. Consider patterns from similar profiles if available
+3. Choose the single best category
+4. Provide confidence score (0-1):
+   - >0.8: Strong match with clear indicators
+   - 0.6-0.8: Good match with some indicators
+   - <0.6: Uncertain match
+
+Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanation", "confidence": 0.95 }}`,
+                ],
+                ["user", "Classify this text:\n\n{text}"],
+            ]);
+
+            const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
+            const timeoutMs = 15000;
+
+            const response = await Promise.race([
                 chain.invoke({ text: text.slice(0, 3000) }),
                 new Promise<string>((_, reject) =>
                     setTimeout(() => reject(new Error("Category classification timed out")), timeoutMs)
                 ),
-            ])) as string;
+            ]) as string;
+
+            // Parse JSON response
             const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
             const match = cleaned.match(/\{[\s\S]*\}/);
+            
             if (match) {
                 const parsed = JSON.parse(match[0]);
-                const slug = typeof parsed?.category === "string" ? parsed.category.trim().toLowerCase().replace(/\s+/g, "-") : "";
+                const category = typeof parsed?.category === "string" ? parsed.category.trim().toLowerCase().replace(/\s+/g, "-") : "";
                 const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : "";
-                if (slug && /^[a-z0-9-]+$/.test(slug)) {
-                    console.log(`📂 Category: ${slug} — Why: ${reason || "(no reason given)"}`);
-                    return slug;
+                const confidence = typeof parsed?.confidence === "number" ? parsed.confidence : 0.7;
+
+                if (category && /^[a-z0-9-]+$/.test(category)) {
+                    // Validate confidence and use fallback if too low
+                    if (confidence < 0.6) {
+                        console.log(`⚠️ Low confidence (${confidence.toFixed(2)}) for category: ${category}`);
+                        const fallbackCategory = this.determineCategoryFromSkills(text);
+                        console.log(`📂 Category: ${fallbackCategory} (fallback due to low confidence)`);
+                        return {
+                            category: fallbackCategory,
+                            reason: `Used keyword matching (AI confidence was ${confidence.toFixed(2)})`,
+                            confidence: 0.5,
+                            similarProfiles: similarDocs
+                        };
+                    }
+
+                    console.log(`📂 Category: ${category} (confidence: ${confidence.toFixed(2)}) — ${reason}`);
+                    if (similarDocs.length > 0) {
+                        console.log(`🔍 Based on ${similarDocs.length} similar profiles in database`);
+                    }
+
+                    return {
+                        category,
+                        reason,
+                        confidence,
+                        similarProfiles: similarDocs
+                    };
                 }
             }
         } catch (err: any) {
-            console.warn("Category AI classification failed, using fallback:", err?.message || err);
+            console.warn("RAG-enhanced category classification failed:", err?.message || err);
         }
-        const fallbackSlug = this.determineCategoryFromSkills(text);
-        console.log(`📂 Category: ${fallbackSlug} (fallback from keywords — AI classification failed)`);
-        return fallbackSlug;
+
+        // Fallback to keyword-based classification
+        const fallbackCategory = this.determineCategoryFromSkills(text);
+        console.log(`📂 Category: ${fallbackCategory} (keyword-based fallback)`);
+        return {
+            category: fallbackCategory,
+            reason: "Determined by keyword matching",
+            confidence: 0.5
+        };
+    }
+
+    /**
+     * Fetch similar CV/JD profiles from vector database
+     */
+    private async fetchSimilarProfiles(text: string, limit: number = 5): Promise<Array<{
+        content: string;
+        similarity: number;
+        metadata: any;
+    }>> {
+        try {
+            const vectorStore = await getVectorStore();
+            
+            // Search for similar documents without filters (to avoid index requirements)
+            // We'll get more results and filter them afterwards
+            const results = await vectorStore.similaritySearchWithScore(text, limit * 3);
+
+            // Filter for CVs and JDs, then limit to requested amount
+            const filtered = results
+                .filter(([doc, _]) => {
+                    const type = doc.metadata?.type || "";
+                    return type === "cv" || type === "jd";
+                })
+                .slice(0, limit);
+
+            return filtered.map(([doc, score]) => ({
+                content: doc.pageContent.slice(0, 500), // First 500 chars for context
+                similarity: score,
+                metadata: {
+                    type: doc.metadata.type,
+                    source: doc.metadata.source,
+                    // Don't include userId for privacy
+                }
+            }));
+        } catch (error: any) {
+            console.warn("Failed to fetch similar profiles from vector DB:", error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Build RAG context string from similar documents
+     */
+    private buildRAGContext(similarDocs: Array<{ content: string; similarity: number; metadata: any }>): string {
+        if (similarDocs.length === 0) {
+            return "";
+        }
+
+        return similarDocs
+            .map((doc, idx) => {
+                const type = doc.metadata.type === "cv" ? "Resume/CV" : "Job Description";
+                return `Example ${idx + 1} (similarity: ${doc.similarity.toFixed(2)}, type: ${type}):\n${doc.content}`;
+            })
+            .join("\n\n");
+    }
+
+    /**
+     * Legacy method for backward compatibility - now uses RAG-enhanced version
+     * @deprecated Use determineCategoryWithRAG instead for better accuracy
+     */
+    async determineCategoryWithAI(text: string): Promise<string> {
+        const result = await this.determineCategoryWithRAG(text);
+        return result.category;
     }
 
     /**
@@ -160,34 +288,6 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "one short senten
             "cv-analysis",
             profile,
             { cvSource: "uploaded-cv" }
-        );
-    }
-
-    /**
-     * Generate roadmap from job description
-     */
-    async generateFromJD(
-        userId: string,
-        profile: UserProfile,
-        jdText: string
-    ): Promise<Roadmap> {
-        const context = this.buildJDContext(jdText, profile);
-        const category = await this.determineCategoryWithAI(jdText);
-
-        const roadmapData = await this.generateRoadmapWithAI(
-            context,
-            profile,
-            category,
-            "jd-analysis"
-        );
-
-        return this.formatRoadmap(
-            userId,
-            roadmapData,
-            category,
-            "jd-analysis",
-            profile,
-            { jdSource: "uploaded-jd" }
         );
     }
 
@@ -935,16 +1035,6 @@ Focus on filling skill gaps and building upon existing knowledge.`;
     }
 
     /**
-     * Build context for JD-based generation
-     */
-    private buildJDContext(jdText: string, profile?: UserProfile): string {
-        return `Generate a learning roadmap to meet these job requirements:
-${jdText.slice(0, 2000)}
-
-Create a structured path to acquire all necessary skills for this role.`;
-    }
-
-    /**
      * Build context for hybrid generation
      */
     private buildHybridContext(
@@ -1036,6 +1126,99 @@ Create a focused roadmap that bridges the gap between current skills and job req
             return `${Math.round(totalWeeks / 4)} months`;
         } else {
             return `${Math.round(totalWeeks / 12)} year${Math.round(totalWeeks / 12) > 1 ? 's' : ''}`;
+        }
+    }
+
+    /**
+     * Discover common patterns and skills for a given career category.
+     * This can help understand what skills are commonly found in successful profiles.
+     * Optional method for analytics and improvement.
+     */
+    async discoverCareerPatterns(category: string, limit: number = 10): Promise<{
+        category: string;
+        commonSkills: string[];
+        sampleCount: number;
+        insights: string;
+    }> {
+        try {
+            const client = await clientPromise;
+            const collection = client.db("rag-agent").collection("documents");
+
+            // Find documents that match this category
+            // Note: This assumes you'll add category metadata when storing documents in the future
+            const docs = await collection.find({
+                $or: [
+                    { "metadata.type": "cv" },
+                    { "type": "cv" }
+                ]
+            }).limit(limit).toArray();
+
+            if (docs.length === 0) {
+                return {
+                    category,
+                    commonSkills: [],
+                    sampleCount: 0,
+                    insights: "No sample data available yet"
+                };
+            }
+
+            // Combine text from documents
+            const combinedText = docs.map((d: any) => d.pageContent || d.text || "").join("\n\n");
+
+            // Use AI to analyze patterns
+            const prompt = ChatPromptTemplate.fromMessages([
+                [
+                    "system",
+                    `You are a career insights analyst. Analyze the provided resume/CV samples and identify common patterns.`
+                ],
+                [
+                    "user",
+                    `Analyze these ${docs.length} resume samples for the ${category} category:
+
+${combinedText.slice(0, 5000)}
+
+Identify:
+1. Most common technical skills
+2. Typical career progression patterns
+3. Entry-level vs advanced indicators
+
+Respond with JSON: {{ "commonSkills": ["skill1", "skill2", ...], "insights": "brief summary of patterns" }}`
+                ]
+            ]);
+
+            const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
+            const response = await Promise.race([
+                chain.invoke({}),
+                new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Pattern discovery timeout")), 20000))
+            ]) as string;
+
+            const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const match = cleaned.match(/\{[\s\S]*\}/);
+
+            if (match) {
+                const parsed = JSON.parse(match[0]);
+                return {
+                    category,
+                    commonSkills: parsed.commonSkills || [],
+                    sampleCount: docs.length,
+                    insights: parsed.insights || ""
+                };
+            }
+
+            return {
+                category,
+                commonSkills: [],
+                sampleCount: docs.length,
+                insights: "Could not analyze patterns"
+            };
+        } catch (error: any) {
+            console.error("Failed to discover career patterns:", error.message);
+            return {
+                category,
+                commonSkills: [],
+                sampleCount: 0,
+                insights: `Error: ${error.message}`
+            };
         }
     }
 
