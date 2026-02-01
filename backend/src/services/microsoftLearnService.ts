@@ -32,38 +32,71 @@ export class MicrosoftLearnService {
     }
 
     /**
-     * Search for learning resources using Microsoft Learn Catalog API
+     * Search for learning resources using Microsoft Learn Catalog API.
+     * Uses type=modules,learningPaths,courses to get courses and modules (smaller response than full catalog).
+     * Filters client-side by query on title/summary.
      */
     async searchResources(
         query: string,
         maxResults: number = 10,
-        type: 'modules' | 'learningPaths' | 'courses' | 'all' = 'all'
+        typeFilter: 'modules' | 'learningPaths' | 'courses' | 'all' = 'all'
     ): Promise<MicrosoftLearnResource[]> {
         try {
-            // Microsoft Learn Catalog API structure
-            // We'll fetch all content types and filter by query
-            const params: any = {
+            const params: Record<string, string> = {
                 locale: 'en-us',
             };
-
-            // Try to fetch resources - the API might return all content or support filtering
-            const response = await this.client.get('/', { params });
-
-            // If the API supports query parameter, use it
-            if (!response.data || Object.keys(response.data).length === 0) {
-                // Try with query parameter
-                const queryResponse = await this.client.get('/', {
-                    params: { ...params, q: query },
-                });
-                return this.formatResources(queryResponse.data, query, maxResults);
+            if (typeFilter === 'all') {
+                params['type'] = 'modules,learningPaths,courses';
+            } else {
+                params['type'] = typeFilter;
             }
 
+            const response = await this.client.get('/', { params, timeout: 20000 });
+            if (!response.data || Object.keys(response.data).length === 0) {
+                return [];
+            }
             return this.formatResources(response.data, query, maxResults);
         } catch (error: any) {
-            console.error('Microsoft Learn API Error:', error.response?.data || error.message);
-            // Return empty array instead of throwing to allow graceful degradation
+            console.warn('Microsoft Learn API:', error.response?.status || error.message);
             return [];
         }
+    }
+
+    /**
+     * Search for courses and modules by topic (for roadmap and learning materials).
+     * Uses topic mapping like the learning materials page for better relevance.
+     */
+    async searchCoursesByTopic(topic: string, maxResults: number = 8): Promise<MicrosoftLearnResource[]> {
+        const topicQueries = this.getTopicQueries(topic);
+        const allResources: MicrosoftLearnResource[] = [];
+        for (const q of topicQueries.slice(0, 3)) {
+            try {
+                const resources = await this.searchResources(q, Math.ceil(maxResults / 2), 'all');
+                allResources.push(...resources);
+            } catch {
+                // continue
+            }
+        }
+        const unique = Array.from(new Map(allResources.map(r => [r.id, r])).values());
+        return unique.slice(0, maxResults);
+    }
+
+    private getTopicQueries(topic: string): string[] {
+        const t = topic.toLowerCase();
+        const map: Record<string, string[]> = {
+            'javascript': ['javascript', 'web development', 'node.js'],
+            'react': ['react', 'frontend', 'web development'],
+            'python': ['python', 'programming', 'azure'],
+            'backend': ['backend', 'azure', 'api', 'server', 'rest'],
+            'frontend': ['web development', 'frontend', 'html', 'css'],
+            'data-science': ['data science', 'azure', 'analytics', 'machine learning'],
+            'devops': ['devops', 'azure', 'ci/cd', 'deployment'],
+            'fullstack': ['web development', 'full stack', 'api'],
+        };
+        for (const [key, queries] of Object.entries(map)) {
+            if (t.includes(key)) return queries;
+        }
+        return [topic, 'learn', 'tutorial'];
     }
 
     /**
@@ -137,17 +170,19 @@ export class MicrosoftLearnService {
                         }
                     }
 
+                    const durationMinutes = item.duration_in_minutes ?? (item.duration_in_hours ? item.duration_in_hours * 60 : undefined);
+                    const durationStr = durationMinutes
+                        ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`
+                        : (item.duration_in_hours ? `${item.duration_in_hours}h` : undefined);
                     const resource: MicrosoftLearnResource = {
                         id: item.uid || item.id || `mslearn-${Math.random().toString(36).substr(2, 9)}`,
                         title: item.title || 'Untitled Resource',
                         description: item.summary || item.description || '',
                         url: item.url || `https://learn.microsoft.com/${item.uid || ''}`,
                         thumbnail: item.icon_url || item.image_url,
-                        duration: item.duration_in_minutes 
-                            ? `${Math.floor(item.duration_in_minutes / 60)}h ${item.duration_in_minutes % 60}m`
-                            : undefined,
+                        duration: durationStr,
                         level: item.level || item.difficulty,
-                        type: contentType.key.slice(0, -1), // Remove 's' from plural
+                        type: contentType.key.slice(0, -1),
                         role: item.roles || (item.role ? [item.role] : undefined),
                         products: item.products || (item.product ? [item.product] : undefined),
                     };

@@ -7,6 +7,7 @@ import { YouTubeService } from "./youtubeService";
 import { MicrosoftLearnService } from "./microsoftLearnService";
 import { MITOCWService } from "./mitOcwService";
 import { OpenLibraryService } from "./openLibraryService";
+import { RoadmapValidatorAgent } from "./roadmapValidatorAgent";
 import axios from "axios";
 
 interface UserProfile {
@@ -27,7 +28,6 @@ interface SkillGap {
  * Intelligent Roadmap Generation Agent using LangChain
  * 
  * This agent uses AI to generate personalized learning roadmaps based on:
- * - User profile and learning preferences
  * - CV analysis and skill gaps
  * - Job description requirements
  * - Hybrid analysis combining CV and JD
@@ -38,6 +38,7 @@ export class RoadmapAgent {
     private microsoftLearnService: MicrosoftLearnService;
     private mitOcwService: MITOCWService;
     private openLibraryService: OpenLibraryService;
+    private validatorAgent: RoadmapValidatorAgent;
 
     constructor(ollamaBaseUrl: string = "http://127.0.0.1:11434", ollamaModel: string = "gpt-oss:20b-cloud") {
         // Initialize LLM with same configuration as chatController
@@ -47,11 +48,14 @@ export class RoadmapAgent {
             temperature: 0.7, // Balanced creativity and consistency
         });
 
-        // Initialize learning material services
+        // Initialize learning material services (YouTube, MS Learn, MIT OCW, Open Library / Books)
         this.youtubeService = new YouTubeService();
         this.microsoftLearnService = new MicrosoftLearnService();
         this.mitOcwService = new MITOCWService();
         this.openLibraryService = new OpenLibraryService();
+
+        // Second agent: validates roadmap and provides feedback for refinement
+        this.validatorAgent = new RoadmapValidatorAgent(ollamaBaseUrl, ollamaModel);
     }
 
     /**
@@ -73,24 +77,61 @@ export class RoadmapAgent {
     }
 
     /**
-     * Generate roadmap from user profile
+     * Determine learning/career category using AI from CV or JD text.
+     * Supports many domains: frontend, backend, data-science, devops, fullstack,
+     * business-analytics, qa, project-management, product-management, design, cybersecurity, etc.
      */
-    async generateFromProfile(
-        userId: string,
-        profile: UserProfile,
-        category?: string
-    ): Promise<Roadmap> {
-        const context = this.buildProfileContext(profile);
-        const detectedCategory = category || this.determineCategoryFromGoals(profile.learningGoals || []);
+    async determineCategoryWithAI(text: string): Promise<string> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            [
+                "system",
+                `You are a career and learning path classifier. Given a job description or CV/resume text, choose the single best learning category for a personalized roadmap.
 
-        const roadmapData = await this.generateRoadmapWithAI(
-            context,
-            profile,
-            detectedCategory,
-            "profile"
-        );
+Choose exactly ONE category from this list (use the slug as-is):
+- frontend (web UI, React, Vue, Angular, CSS, JavaScript/TypeScript)
+- backend (APIs, servers, databases, Node, Python, Java backends)
+- fullstack (both frontend and backend)
+- data-science (data analysis, ML, AI, Python, pandas, statistics)
+- business-analytics (BI, reporting, SQL, Tableau, Power BI, analytics)
+- devops (CI/CD, Docker, Kubernetes, cloud, infrastructure)
+- qa (quality assurance, testing, test automation, Selenium)
+- project-management (agile, scrum, PMP, delivery, planning)
+- product-management (product, roadmap, stakeholders, UX collaboration)
+- design (UX, UI design, Figma, user research)
+- cybersecurity (security, penetration testing, compliance)
+- mobile (iOS, Android, React Native, Flutter)
+- general (if none of the above fit clearly)
 
-        return this.formatRoadmap(userId, roadmapData, detectedCategory, "profile", profile);
+Respond with valid JSON only: {{ "category": "slug", "reason": "one short sentence why" }} using one of the slugs above.`,
+            ],
+            ["user", "Classify this text:\n\n{text}\n\nRespond with JSON only: {{ \"category\": \"slug\", \"reason\": \"one short sentence why\" }}"],
+        ]);
+        const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
+        const timeoutMs = 15000;
+        try {
+            const response = (await Promise.race([
+                chain.invoke({ text: text.slice(0, 3000) }),
+                new Promise<string>((_, reject) =>
+                    setTimeout(() => reject(new Error("Category classification timed out")), timeoutMs)
+                ),
+            ])) as string;
+            const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const match = cleaned.match(/\{[\s\S]*\}/);
+            if (match) {
+                const parsed = JSON.parse(match[0]);
+                const slug = typeof parsed?.category === "string" ? parsed.category.trim().toLowerCase().replace(/\s+/g, "-") : "";
+                const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : "";
+                if (slug && /^[a-z0-9-]+$/.test(slug)) {
+                    console.log(`📂 Category: ${slug} — Why: ${reason || "(no reason given)"}`);
+                    return slug;
+                }
+            }
+        } catch (err: any) {
+            console.warn("Category AI classification failed, using fallback:", err?.message || err);
+        }
+        const fallbackSlug = this.determineCategoryFromSkills(text);
+        console.log(`📂 Category: ${fallbackSlug} (fallback from keywords — AI classification failed)`);
+        return fallbackSlug;
     }
 
     /**
@@ -103,7 +144,7 @@ export class RoadmapAgent {
         skillGaps?: SkillGap[]
     ): Promise<Roadmap> {
         const context = this.buildCVContext(cvText, skillGaps, profile);
-        const category = this.determineCategoryFromSkills(cvText);
+        const category = await this.determineCategoryWithAI(cvText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -131,7 +172,7 @@ export class RoadmapAgent {
         jdText: string
     ): Promise<Roadmap> {
         const context = this.buildJDContext(jdText, profile);
-        const category = this.determineCategoryFromSkills(jdText);
+        const category = await this.determineCategoryWithAI(jdText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -162,7 +203,7 @@ export class RoadmapAgent {
         semanticMatchScore?: number
     ): Promise<Roadmap> {
         const context = this.buildHybridContext(cvText, jdText, skillGaps, profile);
-        const category = this.determineCategoryFromSkills(jdText);
+        const category = await this.determineCategoryWithAI(jdText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -305,7 +346,82 @@ Return ONLY valid JSON, no additional text.`
             }
 
             console.log(`✅ AI generated ${roadmapData.stages.length} stages`);
-            
+
+            // Second agent: validate roadmap; if invalid, refine up to MAX_REFINEMENT_ROUNDS times
+            try {
+                const MAX_REFINEMENT_ROUNDS = 2;
+                const refinementPrompt = ChatPromptTemplate.fromMessages([
+                    ["system", `You are an expert AI learning path architect. Your task is to create comprehensive, personalized learning roadmaps. You must respond with valid JSON only (title, description, stages with modules as previously specified).`],
+                    [
+                        "user",
+                        `Previous roadmap was rejected by the validator. Fix the roadmap and return ONLY valid JSON.
+
+Original context:
+{context}
+
+Validator feedback (you must address these):
+{feedback}
+
+Generate the corrected roadmap. Same JSON structure: title, description, stages (each with id, name, description, order, modules array). Each module: id, title, description, order, estimatedHours, prerequisites. Return ONLY valid JSON, no other text.`
+                    ],
+                ]);
+                const refinementChain = RunnableSequence.from([refinementPrompt, this.llm, new StringOutputParser()]);
+
+                for (let round = 0; round <= MAX_REFINEMENT_ROUNDS; round++) {
+                    let validationResult: { valid: boolean; issues?: string[]; feedback?: string };
+                    try {
+                        validationResult = await this.validatorAgent.validate(
+                            roadmapData,
+                            context,
+                            category,
+                            source
+                        );
+                    } catch (validatorErr: any) {
+                        console.warn("Validator error, skipping refinement:", validatorErr?.message || validatorErr);
+                        break;
+                    }
+                    if (validationResult.valid) {
+                        if (round > 0) {
+                            console.log(`✅ Roadmap accepted after ${round} refinement(s)`);
+                        }
+                        break;
+                    }
+                    if (!validationResult.feedback || round === MAX_REFINEMENT_ROUNDS) {
+                        if (round > 0) {
+                            console.log(`⚠️ Using roadmap after ${round} refinement(s); validator still had concerns`);
+                        }
+                        break;
+                    }
+                    console.log(`🔍 Validator round ${round + 1}: ${validationResult.issues?.join("; ") || validationResult.feedback}`);
+                    let refinementResponse: string;
+                    try {
+                        refinementResponse = await Promise.race([
+                            refinementChain.invoke({ context, feedback: validationResult.feedback }),
+                            timeoutPromise,
+                        ]) as string;
+                    } catch (refineErr: any) {
+                        console.warn("Refinement error, using current roadmap:", refineErr?.message || refineErr);
+                        break;
+                    }
+                    const refineText = refinementResponse.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+                    const refineMatch = refineText.match(/\{[\s\S]*\}/);
+                    if (refineMatch) {
+                        try {
+                            const refined = JSON.parse(refineMatch[0]);
+                            if (refined.stages && Array.isArray(refined.stages) && refined.stages.length > 0) {
+                                roadmapData = refined;
+                            }
+                        } catch (_) {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            } catch (validationLoopErr: any) {
+                console.warn("Validation/refinement loop error, continuing with current roadmap:", validationLoopErr?.message || validationLoopErr);
+            }
+
             // Validate and enrich with resources
             return await this.enrichRoadmapWithResources(roadmapData, category, profile);
         } catch (error: any) {
@@ -332,11 +448,13 @@ Return ONLY valid JSON, no additional text.`
         category: string,
         profile: UserProfile
     ): Promise<{ title: string; description: string; stages: RoadmapStage[] }> {
-        const GLOBAL_TIMEOUT = 45000; // 45 seconds max for entire enrichment
-        const PER_MODULE_TIMEOUT = 5000; // 5 seconds per module
+        const GLOBAL_TIMEOUT = 60000; // 60 seconds max for entire enrichment
+        const PER_MODULE_TIMEOUT = 12000; // 12 seconds per module so APIs have time to respond
         const startTime = Date.now();
 
-        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s)...`);
+        const learningStyles = profile.learningStyles?.length ? profile.learningStyles.join(", ") : "not set";
+        const timeAvailability = profile.timeAvailability || "moderate";
+        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Profile: learning styles [${learningStyles}], time [${timeAvailability}]. Recommending 1–5 resources per module based on profile.`);
 
         const enrichedStages: RoadmapStage[] = [];
         let isFirstModule = true;
@@ -368,9 +486,9 @@ Return ONLY valid JSON, no additional text.`
                                     module.title,
                                     module.description || '',
                                     category,
-                                    profile.learningStyles || []
+                                    profile
                                 ),
-                                new Promise<LearningResource[]>((resolve) => 
+                                new Promise<LearningResource[]>((resolve) =>
                                     setTimeout(() => resolve([]), PER_MODULE_TIMEOUT)
                                 )
                             ]);
@@ -378,6 +496,21 @@ Return ONLY valid JSON, no additional text.`
                             console.warn(`⚠️ Resource fetch failed for "${module.title}": ${err.message}`);
                         }
                     }
+
+                    // Ensure every module has at least 3 resources (max 6); add fallbacks if needed
+                    const minResources = 3;
+                    const maxResources = 6;
+                    if (resources.length < minResources) {
+                        const fallbacksNeeded = minResources - resources.length;
+                        for (let i = 0; i < fallbacksNeeded; i++) {
+                            resources.push(this.createFallbackResource(
+                                module.title || "Untitled Module",
+                                category,
+                                i > 0 ? `-${i + 1}` : ""
+                            ));
+                        }
+                    }
+                    resources = resources.slice(0, maxResources);
 
                     const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
                         module.estimatedHours || 40,
@@ -392,7 +525,7 @@ Return ONLY valid JSON, no additional text.`
                         order: module.order || moduleIndex + 1,
                         estimatedTime,
                         estimatedHours,
-                        resources: resources.slice(0, 6), // Limit to 6 resources per module
+                        resources,
                         prerequisites: module.prerequisites || [],
                         progress: 0
                     };
@@ -442,25 +575,37 @@ Return ONLY valid JSON, no additional text.`
     }
 
     /**
-     * Fetch learning resources from multiple services
+     * Fetch learning resources from all available APIs, then recommend based on user profile.
+     * - Learning style: prefer resource types that match (visual→video/course, reading→article/book, hands-on→course, audio→video).
+     * - Time availability: prefer shorter resources for minimal time, allow longer for intensive/fulltime.
      */
     private async fetchLearningResources(
         moduleTitle: string,
         moduleDescription: string,
         category: string,
-        learningStyles: string[]
+        profile: UserProfile
     ): Promise<LearningResource[]> {
         const resources: LearningResource[] = [];
         const searchQuery = `${moduleTitle} ${category}`;
+        const learningStyles = profile.learningStyles || [];
+        const timeAvailability = profile.timeAvailability || "moderate";
 
-        // Fetch from multiple sources in parallel
+        // Request counts per source based on primary learning style (so we get more of preferred types)
+        const counts = this.getRecommendedSourceCounts(learningStyles);
+
+        const msLearnPromise = (async (): Promise<Array<{ id: string; title: string; description: string; url: string; duration?: string; level?: string; type?: string }>> => {
+            const byTopic = await this.microsoftLearnService.searchCoursesByTopic(category, 6).catch(() => []);
+            if (byTopic.length > 0) return byTopic;
+            return this.microsoftLearnService.searchResources(searchQuery, 4).catch(() => []);
+        })();
+
         const [youtubeVideos, msLearnResources, mitCourses, books] = await Promise.allSettled([
             this.youtubeService.isConfigured()
-                ? this.youtubeService.searchVideos(searchQuery, 3).catch(() => [])
+                ? this.youtubeService.searchVideos(searchQuery, counts.youtube).catch(() => [])
                 : Promise.resolve([]),
-            this.microsoftLearnService.searchResources(searchQuery, 3).catch(() => []),
-            this.mitOcwService.searchCourses(searchQuery, 2).catch(() => []),
-            this.openLibraryService.searchBooks(searchQuery, 2).catch(() => [])
+            msLearnPromise,
+            this.mitOcwService.searchCourses(searchQuery, counts.mit).catch(() => []),
+            this.openLibraryService.searchBooks(searchQuery, counts.books).catch(() => [])
         ]);
 
         // Process YouTube videos
@@ -479,15 +624,15 @@ Return ONLY valid JSON, no additional text.`
             }
         }
 
-        // Process Microsoft Learn resources
+        // Process Microsoft Learn resources (modules, learning paths, courses → all as "course")
         if (msLearnResources.status === "fulfilled" && msLearnResources.value.length > 0) {
             for (const resource of msLearnResources.value) {
                 resources.push({
                     id: `mslearn-${resource.id}`,
-                    type: resource.type === "course" ? "course" : "article",
+                    type: "course",
                     title: resource.title,
                     url: resource.url,
-                    description: resource.description.slice(0, 200),
+                    description: (resource.description || "").slice(0, 200),
                     duration: resource.duration,
                     difficulty: this.mapDifficulty(resource.level),
                     completed: false
@@ -525,8 +670,143 @@ Return ONLY valid JSON, no additional text.`
             }
         }
 
-        // Prioritize resources based on learning styles
-        return this.prioritizeResources(resources, learningStyles);
+        // Recommend by profile, then ensure mix: videos + courses + books; at least 3, max 6
+        const scored = this.recommendByProfile(resources, learningStyles, timeAvailability);
+        return this.selectWithDiversity(scored, 6);
+    }
+
+    /**
+     * Select up to maxResources ensuring a mix: videos, courses, and books.
+     * - Max 2 videos so we don't fill all slots with YouTube.
+     * - Prefer courses (MS Learn, MIT OCW) so roadmap includes courses.
+     * - At least 1 book when available.
+     */
+    private selectWithDiversity(resources: LearningResource[], maxResources: number): LearningResource[] {
+        if (resources.length <= maxResources) return resources.slice(0, Math.max(maxResources, 3));
+
+        const videos = resources.filter(r => r.type === "video");
+        const coursesOrArticles = resources.filter(r => r.type === "course" || r.type === "article");
+        const books = resources.filter(r => r.type === "book");
+        const pickedIds = new Set<string>();
+        const result: LearningResource[] = [];
+
+        // Add up to 2 videos (so we don't get only YouTube)
+        for (const r of videos.slice(0, 2)) {
+            result.push(r);
+            pickedIds.add(r.id);
+        }
+        // Add at least 1 course/article when available
+        for (const r of coursesOrArticles.slice(0, 2)) {
+            if (result.length >= maxResources) break;
+            if (!pickedIds.has(r.id)) {
+                result.push(r);
+                pickedIds.add(r.id);
+            }
+        }
+        // Add at least 1 book when available
+        for (const r of books.slice(0, 1)) {
+            if (result.length >= maxResources) break;
+            if (!pickedIds.has(r.id)) {
+                result.push(r);
+                pickedIds.add(r.id);
+            }
+        }
+        // Fill remaining slots by original order (already scored)
+        for (const r of resources) {
+            if (result.length >= maxResources) break;
+            if (!pickedIds.has(r.id)) {
+                result.push(r);
+                pickedIds.add(r.id);
+            }
+        }
+        return result.slice(0, maxResources);
+    }
+
+    /**
+     * Get per-source request counts. Always request courses (MS Learn, MIT) and books so we can show a mix.
+     */
+    private getRecommendedSourceCounts(learningStyles: string[]): { youtube: number; msLearn: number; mit: number; books: number } {
+        const styles = learningStyles.map(s => s.toLowerCase());
+        for (const s of styles) {
+            if (s === "visual" || s === "audio") return { youtube: 3, msLearn: 2, mit: 2, books: 2 };
+            if (s === "reading") return { youtube: 1, msLearn: 2, mit: 2, books: 2 };
+            if (s === "hands-on") return { youtube: 1, msLearn: 3, mit: 2, books: 2 };
+        }
+        return { youtube: 2, msLearn: 2, mit: 2, books: 2 };
+    }
+
+    /**
+     * Parse duration string to approximate minutes (e.g. "5:30" -> 5, "1h 30m" -> 90, "N/A" -> null).
+     */
+    private parseDurationToMinutes(duration: string | undefined): number | null {
+        if (!duration || duration === "N/A") return null;
+        const d = duration.trim().toLowerCase();
+        let minutes = 0;
+        const hourMatch = d.match(/(\d+)\s*h/);
+        if (hourMatch) minutes += parseInt(hourMatch[1], 10) * 60;
+        const minMatch = d.match(/(\d+)\s*m/);
+        if (minMatch) minutes += parseInt(minMatch[1], 10);
+        const colonMatch = d.match(/^(\d+):(\d+)/);
+        if (colonMatch && !hourMatch) minutes = parseInt(colonMatch[1], 10) * 60 + parseInt(colonMatch[2], 10);
+        if (minutes > 0) return minutes;
+        return null;
+    }
+
+    /**
+     * Score resource by time availability: prefer shorter for minimal, allow longer for fulltime.
+     */
+    private getTimeSuitabilityScore(resource: LearningResource, timeAvailability: string): number {
+        const mins = this.parseDurationToMinutes(resource.duration);
+        if (mins == null) return 0.5; // unknown duration: neutral
+        const limits: Record<string, number> = {
+            minimal: 20,   // prefer ≤ 20 min
+            moderate: 45,  // prefer ≤ 45 min
+            intensive: 90,
+            fulltime: 999
+        };
+        const limit = limits[timeAvailability] ?? 45;
+        if (mins <= limit) return 1;
+        if (mins <= limit * 2) return 0.5;
+        return 0.2;
+    }
+
+    /**
+     * Rank resources by user profile: learning style first, then time suitability.
+     */
+    private recommendByProfile(
+        resources: LearningResource[],
+        learningStyles: string[],
+        timeAvailability: string
+    ): LearningResource[] {
+        return resources
+            .map(r => ({
+                resource: r,
+                styleScore: this.getLearningStyleScore(r, learningStyles),
+                timeScore: this.getTimeSuitabilityScore(r, timeAvailability)
+            }))
+            .sort((a, b) => {
+                const styleA = a.styleScore, styleB = b.styleScore;
+                if (styleB !== styleA) return styleB - styleA;
+                return b.timeScore - a.timeScore;
+            })
+            .map(x => x.resource);
+    }
+
+    /**
+     * Create a fallback learning resource when APIs return none or we need at least 3 per module.
+     */
+    private createFallbackResource(moduleTitle: string, category: string, suffix: string = ""): LearningResource {
+        const query = encodeURIComponent(`learn ${moduleTitle} ${category} tutorial`);
+        const slug = moduleTitle.toLowerCase().replace(/\s+/g, "-").slice(0, 28) + suffix;
+        return {
+            id: `fallback-${slug}`,
+            type: "article",
+            title: `Learn more: ${moduleTitle}`,
+            url: `https://www.google.com/search?q=${query}`,
+            description: `Search the web for tutorials and courses on "${moduleTitle}".`,
+            difficulty: "intermediate",
+            completed: false
+        };
     }
 
     /**
@@ -638,19 +918,6 @@ Return ONLY valid JSON, no additional text.`
         }
 
         return { estimatedTime, estimatedHours: adjustedHours };
-    }
-
-    /**
-     * Build context for profile-based generation
-     */
-    private buildProfileContext(profile: UserProfile): string {
-        return `User wants to create a learning roadmap based on their profile:
-- Learning Goals: ${profile.learningGoals?.join(", ") || "General skill development"}
-- Learning Styles: ${profile.learningStyles?.join(", ") || "Mixed learning styles"}
-- Time Availability: ${profile.timeAvailability || "moderate"}
-- Age: ${profile.age || "Not specified"}
-
-Create a comprehensive roadmap that aligns with their goals and learning preferences.`;
     }
 
     /**
@@ -773,53 +1040,21 @@ Create a focused roadmap that bridges the gap between current skills and job req
     }
 
     /**
-     * Determine category from learning goals
-     */
-    private determineCategoryFromGoals(goals: string[]): string {
-        const goalText = goals.join(" ").toLowerCase();
-        
-        if (goalText.match(/\b(frontend|react|vue|angular|ui|ux|html|css)\b/)) {
-            return "frontend";
-        }
-        if (goalText.match(/\b(backend|node|api|server|database)\b/)) {
-            return "backend";
-        }
-        if (goalText.match(/\b(data science|machine learning|ai|ml|python|analytics)\b/)) {
-            return "data-science";
-        }
-        if (goalText.match(/\b(devops|docker|kubernetes|aws|azure|cloud)\b/)) {
-            return "devops";
-        }
-        if (goalText.match(/\b(full.?stack|fullstack|web development)\b/)) {
-            return "fullstack";
-        }
-        
-        return "frontend"; // Default
-    }
-
-    /**
-     * Determine category from skills text
+     * Fallback: determine category from keyword matching when AI classification fails.
      */
     private determineCategoryFromSkills(skillsText: string): string {
         const text = skillsText.toLowerCase();
-        
-        if (text.match(/\b(react|vue|angular|frontend|ui|ux|css|html|javascript|typescript)\b/)) {
-            return "frontend";
-        }
-        if (text.match(/\b(node|backend|api|server|database|sql|nosql|express|fastapi)\b/)) {
-            return "backend";
-        }
-        if (text.match(/\b(python|data|machine learning|ai|ml|data science|pandas|numpy|tensorflow)\b/)) {
-            return "data-science";
-        }
-        if (text.match(/\b(devops|docker|kubernetes|aws|azure|cloud|terraform|ci\/cd)\b/)) {
-            return "devops";
-        }
-        if (text.match(/\b(full.?stack|fullstack|mern|mean|web development)\b/)) {
-            return "fullstack";
-        }
-        
-        return "frontend"; // Default
+        if (text.match(/\b(react|vue|angular|frontend|ui|ux|css|html|javascript|typescript)\b/)) return "frontend";
+        if (text.match(/\b(node|backend|api|server|database|sql|nosql|express|fastapi)\b/)) return "backend";
+        if (text.match(/\b(python|data|machine learning|ai|ml|data science|pandas|numpy|tensorflow)\b/)) return "data-science";
+        if (text.match(/\b(devops|docker|kubernetes|aws|azure|cloud|terraform|ci\/cd)\b/)) return "devops";
+        if (text.match(/\b(full.?stack|fullstack|mern|mean|web development)\b/)) return "fullstack";
+        if (text.match(/\b(analytics|bi|tableau|power bi|reporting|business intelligence)\b/)) return "business-analytics";
+        if (text.match(/\b(qa|testing|selenium|test automation|quality assurance)\b/)) return "qa";
+        if (text.match(/\b(project management|agile|scrum|pmp|delivery)\b/)) return "project-management";
+        if (text.match(/\b(product management|product owner|roadmap)\b/)) return "product-management";
+        if (text.match(/\b(security|cybersecurity|penetration|compliance)\b/)) return "cybersecurity";
+        return "general";
     }
 
     /**

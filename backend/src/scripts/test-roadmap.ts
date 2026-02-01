@@ -89,78 +89,10 @@ async function updateProfile() {
 }
 
 /**
- * Step 4: Test profile-based roadmap generation
- */
-async function testProfileRoadmap() {
-    console.log('\n🛣️  Step 4: Testing Profile-Based Roadmap Generation...');
-    console.log('   This may take 30-90 seconds...');
-    
-    const startTime = Date.now();
-    
-    try {
-        const response = await axios.post(
-            `${BASE_URL}/api/roadmap/generate`,
-            { source: 'profile' },
-            {
-                headers: {
-                    Authorization: `Bearer ${authToken}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 120000 // 2 minutes timeout
-            }
-        );
-        
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-        const roadmap = response.data.roadmap;
-        
-        console.log(`✅ Roadmap generated in ${duration}s`);
-        console.log(`   Title: ${roadmap.title}`);
-        console.log(`   Category: ${roadmap.category}`);
-        console.log(`   Source: ${roadmap.source}`);
-        console.log(`   Stages: ${roadmap.stages.length}`);
-        
-        // Count modules and resources
-        let totalModules = 0;
-        let totalResources = 0;
-        roadmap.stages.forEach((stage: any) => {
-            totalModules += stage.modules.length;
-            stage.modules.forEach((module: any) => {
-                totalResources += module.resources?.length || 0;
-            });
-        });
-        
-        console.log(`   Total Modules: ${totalModules}`);
-        console.log(`   Total Resources: ${totalResources}`);
-        console.log(`   Estimated Time: ${roadmap.estimatedCompletionTime}`);
-        
-        // Verify structure
-        const hasResources = roadmap.stages.some((stage: any) =>
-            stage.modules.some((module: any) => module.resources?.length > 0)
-        );
-        
-        if (hasResources) {
-            console.log('   ✅ Resources found');
-        } else {
-            console.log('   ⚠️  No resources found (may be normal if services unavailable)');
-        }
-        
-        return roadmap._id;
-    } catch (error: any) {
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.error(`❌ Roadmap generation failed after ${duration}s`);
-        console.error('   Error:', error.response?.data || error.message);
-        if (error.response?.data?.message) {
-            console.error('   Details:', error.response.data.message);
-        }
-        return null;
-    }
-}
-
-/**
- * Step 5: Get all roadmaps
+ * Step 4: Get all roadmaps
  */
 async function getAllRoadmaps() {
-    console.log('\n📋 Step 5: Fetching all roadmaps...');
+    console.log('\n📋 Step 4: Fetching all roadmaps...');
     try {
         const response = await axios.get(`${BASE_URL}/api/roadmap`, {
             headers: { Authorization: `Bearer ${authToken}` }
@@ -179,10 +111,10 @@ async function getAllRoadmaps() {
 }
 
 /**
- * Step 6: Test roadmap retrieval
+ * Step 5: Test roadmap retrieval
  */
 async function testGetRoadmap(roadmapId: string) {
-    console.log('\n🔍 Step 6: Testing roadmap retrieval...');
+    console.log('\n🔍 Step 5: Testing roadmap retrieval...');
     try {
         const response = await axios.get(`${BASE_URL}/api/roadmap/${roadmapId}`, {
             headers: { Authorization: `Bearer ${authToken}` }
@@ -247,13 +179,12 @@ async function runTests() {
     
     await updateProfile();
     
-    const roadmapId = await testProfileRoadmap();
+    const roadmaps = await getAllRoadmaps();
     
+    const roadmapId = roadmaps.length > 0 ? roadmaps[0]._id : null;
     if (roadmapId) {
         await testGetRoadmap(roadmapId);
     }
-    
-    await getAllRoadmaps();
     
     console.log('\n' + '='.repeat(50));
     console.log('✅ Test suite completed!');
