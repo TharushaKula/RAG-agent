@@ -50,6 +50,7 @@ import { IndustryInfo } from "@/components/industry/IndustryInfo";
 import { LearningMaterials } from "@/components/learning/LearningMaterials";
 import { ProfilePanel } from "@/components/profile/ProfilePanel";
 import { RoadmapView } from "@/components/roadmap/RoadmapView";
+import { Podcasts } from "@/components/podcasts/Podcasts";
 
 
 interface Source {
@@ -63,14 +64,14 @@ interface Message {
     sources?: Source[];
 }
 
-export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" } = {}) {
+export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" | "podcasts" } = {}) {
     const { user, token, logout, isLoading: authLoading } = useAuth();
     const router = useRouter();
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap">(initialView);
+    const [activeView, setActiveView] = useState<"chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" | "podcasts">(initialView);
 
     // Ingestion state
     const [ingestText, setIngestText] = useState("");
@@ -340,11 +341,13 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                                                             ? "Industry Info"
                                                             : activeView === "learning-materials"
                                                                 ? "Learning Materials"
-                                                                : activeView === "roadmap"
-                                                                    ? "Roadmap"
-                                                                    : activeView === "profile"
-                                                                        ? "Profile"
-                                                                        : "GitHub Explorer Agent"}
+                                                                : activeView === "podcasts"
+                                                                    ? "Podcasts"
+                                                                    : activeView === "roadmap"
+                                                                        ? "Roadmap"
+                                                                        : activeView === "profile"
+                                                                            ? "Profile"
+                                                                            : "GitHub Explorer Agent"}
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -566,6 +569,8 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                         <LearningMaterials />
                     ) : activeView === "roadmap" ? (
                         <RoadmapView />
+                    ) : activeView === "podcasts" ? (
+                        <Podcasts />
                     ) : activeView === "profile" ? (
                         <div className="flex flex-1 overflow-hidden rounded-xl bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl text-white">
                             <div className="flex-1 overflow-y-auto p-4">

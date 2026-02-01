@@ -12,6 +12,7 @@ import {
     User as UserIcon,
     Target,
     Sparkles,
+    Headphones,
 } from "lucide-react"
 
 import {
@@ -29,8 +30,8 @@ import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap"
-    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap") => void
+    activeView: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" | "podcasts"
+    setActiveView: (view: "chat" | "knowledge" | "github-agent" | "cv-analyzer" | "semantic-matcher" | "industry-info" | "learning-materials" | "profile" | "roadmap" | "podcasts") => void
     activeTab: "text" | "file" | "github"
     setActiveTab: (tab: "text" | "file" | "github") => void
     ingestText: string
@@ -105,6 +106,12 @@ export function AppSidebar({
             icon: BookOpen,
             isActive: activeView === "learning-materials",
             onClick: () => setActiveView("learning-materials"),
+        },
+        {
+            title: "Podcasts",
+            icon: Headphones,
+            isActive: activeView === "podcasts",
+            onClick: () => setActiveView("podcasts"),
         },
         {
             title: "Roadmap",
