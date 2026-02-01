@@ -497,11 +497,20 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                         }
                     }
 
-                    // Ensure every module has at least 1 resource (max 5); add fallback if none from APIs
-                    resources = resources.slice(0, 5);
-                    if (resources.length === 0) {
-                        resources = [this.createFallbackResource(module.title || "Untitled Module", category)];
+                    // Ensure every module has at least 3 resources (max 6); add fallbacks if needed
+                    const minResources = 3;
+                    const maxResources = 6;
+                    if (resources.length < minResources) {
+                        const fallbacksNeeded = minResources - resources.length;
+                        for (let i = 0; i < fallbacksNeeded; i++) {
+                            resources.push(this.createFallbackResource(
+                                module.title || "Untitled Module",
+                                category,
+                                i > 0 ? `-${i + 1}` : ""
+                            ));
+                        }
                     }
+                    resources = resources.slice(0, maxResources);
 
                     const { estimatedTime, estimatedHours } = this.calculateTimeEstimate(
                         module.estimatedHours || 40,
@@ -584,11 +593,17 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         // Request counts per source based on primary learning style (so we get more of preferred types)
         const counts = this.getRecommendedSourceCounts(learningStyles);
 
+        const msLearnPromise = (async (): Promise<Array<{ id: string; title: string; description: string; url: string; duration?: string; level?: string; type?: string }>> => {
+            const byTopic = await this.microsoftLearnService.searchCoursesByTopic(category, 6).catch(() => []);
+            if (byTopic.length > 0) return byTopic;
+            return this.microsoftLearnService.searchResources(searchQuery, 4).catch(() => []);
+        })();
+
         const [youtubeVideos, msLearnResources, mitCourses, books] = await Promise.allSettled([
             this.youtubeService.isConfigured()
                 ? this.youtubeService.searchVideos(searchQuery, counts.youtube).catch(() => [])
                 : Promise.resolve([]),
-            this.microsoftLearnService.searchResources(searchQuery, counts.msLearn).catch(() => []),
+            msLearnPromise,
             this.mitOcwService.searchCourses(searchQuery, counts.mit).catch(() => []),
             this.openLibraryService.searchBooks(searchQuery, counts.books).catch(() => [])
         ]);
@@ -609,15 +624,15 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Process Microsoft Learn resources
+        // Process Microsoft Learn resources (modules, learning paths, courses → all as "course")
         if (msLearnResources.status === "fulfilled" && msLearnResources.value.length > 0) {
             for (const resource of msLearnResources.value) {
                 resources.push({
                     id: `mslearn-${resource.id}`,
-                    type: resource.type === "course" ? "course" : "article",
+                    type: "course",
                     title: resource.title,
                     url: resource.url,
-                    description: resource.description.slice(0, 200),
+                    description: (resource.description || "").slice(0, 200),
                     duration: resource.duration,
                     difficulty: this.mapDifficulty(resource.level),
                     completed: false
@@ -655,19 +670,19 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Recommend by profile, then ensure mix of types: videos + courses + books (not only videos)
+        // Recommend by profile, then ensure mix: videos + courses + books; at least 3, max 6
         const scored = this.recommendByProfile(resources, learningStyles, timeAvailability);
-        return this.selectWithDiversity(scored, 5);
+        return this.selectWithDiversity(scored, 6);
     }
 
     /**
-     * Select up to maxResources ensuring a mix: videos, courses/articles, and books when available.
+     * Select up to maxResources ensuring a mix: videos, courses, and books.
      * - Max 2 videos so we don't fill all slots with YouTube.
-     * - At least 1 course or article (MS Learn, MIT OCW) when available.
+     * - Prefer courses (MS Learn, MIT OCW) so roadmap includes courses.
      * - At least 1 book when available.
      */
     private selectWithDiversity(resources: LearningResource[], maxResources: number): LearningResource[] {
-        if (resources.length <= maxResources) return resources.slice(0, maxResources);
+        if (resources.length <= maxResources) return resources.slice(0, Math.max(maxResources, 3));
 
         const videos = resources.filter(r => r.type === "video");
         const coursesOrArticles = resources.filter(r => r.type === "course" || r.type === "article");
@@ -778,12 +793,13 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
     }
 
     /**
-     * Create a fallback learning resource when APIs return none (so every module has at least one).
+     * Create a fallback learning resource when APIs return none or we need at least 3 per module.
      */
-    private createFallbackResource(moduleTitle: string, category: string): LearningResource {
+    private createFallbackResource(moduleTitle: string, category: string, suffix: string = ""): LearningResource {
         const query = encodeURIComponent(`learn ${moduleTitle} ${category} tutorial`);
+        const slug = moduleTitle.toLowerCase().replace(/\s+/g, "-").slice(0, 28) + suffix;
         return {
-            id: `fallback-${moduleTitle.toLowerCase().replace(/\s+/g, "-").slice(0, 30)}`,
+            id: `fallback-${slug}`,
             type: "article",
             title: `Learn more: ${moduleTitle}`,
             url: `https://www.google.com/search?q=${query}`,
