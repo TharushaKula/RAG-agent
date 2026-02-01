@@ -100,6 +100,18 @@ export const generateRoadmap = async (req: Request, res: Response) => {
         const inputData: any = {};
         const cvSource = req.body.cvSource;
         const jdSource = req.body.jdSource;
+        const targetRole = req.body.targetRole; // Target job role for CV analysis
+
+        // Validate target role for CV analysis
+        if (source === "cv" && (!targetRole || !targetRole.trim())) {
+            return res.status(400).json({ error: "Target job role is required for CV analysis" });
+        }
+
+        // Add target role to input data
+        if (targetRole && targetRole.trim()) {
+            inputData.targetRole = targetRole.trim();
+            console.log(`🎯 Target role: ${targetRole.trim()}`);
+        }
 
         // Get CV text if needed
         if (source === "cv" || source === "hybrid") {

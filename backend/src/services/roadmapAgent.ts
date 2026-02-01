@@ -263,16 +263,25 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
     }
 
     /**
-     * Generate roadmap from CV analysis
+     * Generate roadmap from CV analysis with target job role
+     * @param targetRole - The specific job role the user is aiming for
      */
     async generateFromCV(
         userId: string,
         profile: UserProfile,
         cvText: string,
-        skillGaps?: SkillGap[]
+        skillGaps?: SkillGap[],
+        targetRole?: string
     ): Promise<Roadmap> {
-        const context = this.buildCVContext(cvText, skillGaps, profile);
-        const category = await this.determineCategoryWithAI(cvText);
+        console.log(`🎯 Generating CV analysis roadmap for target role: ${targetRole || 'not specified'}`);
+        
+        // Build context with target role for comprehensive analysis
+        const context = this.buildCVContextWithTargetRole(cvText, skillGaps, profile, targetRole);
+        
+        // Use target role to determine category if provided, otherwise use CV text
+        const category = targetRole 
+            ? await this.determineCategoryFromTargetRole(targetRole)
+            : await this.determineCategoryWithAI(cvText);
 
         const roadmapData = await this.generateRoadmapWithAI(
             context,
@@ -287,8 +296,122 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
             category,
             "cv-analysis",
             profile,
-            { cvSource: "uploaded-cv" }
+            { 
+                cvSource: "uploaded-cv",
+                targetRole: targetRole || undefined
+            }
         );
+    }
+    
+    /**
+     * Determine category from target job role
+     */
+    private async determineCategoryFromTargetRole(targetRole: string): Promise<string> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            [
+                "system",
+                `You are a career classifier. Given a target job role, determine the most appropriate learning category.
+
+Choose exactly ONE category from this list:
+- frontend (web UI, React, Vue, Angular, CSS, JavaScript/TypeScript)
+- backend (APIs, servers, databases, Node, Python, Java backends)
+- fullstack (both frontend and backend)
+- data-science (data analysis, ML, AI, Python, pandas, statistics)
+- business-analytics (BI, reporting, SQL, Tableau, Power BI, analytics)
+- devops (CI/CD, Docker, Kubernetes, cloud, infrastructure)
+- qa (quality assurance, testing, test automation, Selenium)
+- project-management (agile, scrum, PMP, delivery, planning)
+- product-management (product, roadmap, stakeholders, UX collaboration)
+- design (UX, UI design, Figma, user research)
+- cybersecurity (security, penetration testing, compliance)
+- mobile (iOS, Android, React Native, Flutter)
+- general (if none of the above fit clearly)
+
+Respond with valid JSON only: {{ "category": "slug", "reason": "one short sentence why" }}`,
+            ],
+            ["user", "Target job role: {role}"],
+        ]);
+        
+        const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
+        
+        try {
+            const response = await Promise.race([
+                chain.invoke({ role: targetRole }),
+                new Promise<string>((_, reject) =>
+                    setTimeout(() => reject(new Error("Category classification timed out")), 10000)
+                ),
+            ]) as string;
+            
+            const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+            const match = cleaned.match(/\{[\s\S]*\}/);
+            if (match) {
+                const parsed = JSON.parse(match[0]);
+                const slug = typeof parsed?.category === "string" ? parsed.category.trim().toLowerCase().replace(/\s+/g, "-") : "";
+                if (slug && /^[a-z0-9-]+$/.test(slug)) {
+                    console.log(`📂 Category for "${targetRole}": ${slug}`);
+                    return slug;
+                }
+            }
+        } catch (err: any) {
+            console.warn("Target role category classification failed:", err?.message);
+        }
+        
+        // Fallback
+        return this.determineCategoryFromSkills(targetRole);
+    }
+    
+    /**
+     * Build comprehensive CV context with target role for skill gap analysis
+     */
+    private buildCVContextWithTargetRole(
+        cvText: string, 
+        skillGaps?: SkillGap[], 
+        profile?: UserProfile,
+        targetRole?: string
+    ): string {
+        const gapsText = skillGaps && skillGaps.length > 0
+            ? `\n\nIdentified Skills from CV:\n${skillGaps.map(g => `- ${g.skill}`).join("\n")}`
+            : "";
+
+        if (targetRole) {
+            return `You are analyzing a CV/resume to create a personalized learning roadmap for someone targeting the role of "${targetRole}".
+
+TARGET JOB ROLE: ${targetRole}
+
+IMPORTANT INSTRUCTIONS:
+1. First, thoroughly analyze the CV content below to understand the candidate's:
+   - Current technical skills and proficiency levels
+   - Work experience and projects
+   - Educational background
+   - Certifications and achievements
+
+2. Then, consider the typical requirements for a "${targetRole}" position:
+   - Required technical skills and tools
+   - Soft skills and competencies
+   - Industry knowledge and domain expertise
+   - Common certifications or qualifications
+   - Experience level expectations
+
+3. Perform a SKILL GAP ANALYSIS by comparing:
+   - What the candidate currently has (from CV)
+   - What is typically required for "${targetRole}"
+   - Identify MISSING or WEAK skills
+
+4. Create a roadmap that:
+   - Prioritizes the most critical skill gaps for "${targetRole}"
+   - Builds upon the candidate's existing strengths
+   - Provides a realistic learning path with progressive stages
+   - Focuses on practical, industry-relevant skills
+
+CV/RESUME CONTENT:
+${cvText.slice(0, 3000)}${gapsText}
+
+Generate a comprehensive, personalized learning roadmap that will help this candidate become a qualified "${targetRole}".
+Focus on bridging the specific skill gaps identified between their current profile and the target role requirements.`;
+        }
+
+        // Fallback to basic CV context if no target role
+        return this.buildCVContext(cvText, skillGaps, profile);
     }
 
     /**

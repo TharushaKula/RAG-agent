@@ -5,8 +5,9 @@ import { useAuth } from "../../context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, Sparkles, X, Target, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { RoadmapProgress } from "./RoadmapProgress";
 
@@ -21,6 +22,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
     const [availableFiles, setAvailableFiles] = useState<{ cv: string[], jd: string[] }>({ cv: [], jd: [] });
     const [selectedCV, setSelectedCV] = useState<string>("");
     const [selectedJD, setSelectedJD] = useState<string>("");
+    const [targetRole, setTargetRole] = useState<string>(""); // Target job role for CV analysis
     const [isGenerating, setIsGenerating] = useState(false);
     const [isComplete, setIsComplete] = useState(false); // Tracks actual backend completion
 
@@ -63,6 +65,10 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
             toast.error("Please select a CV for CV or hybrid roadmap");
             return;
         }
+        if (source === "cv" && !targetRole.trim()) {
+            toast.error("Please enter a target job role for CV analysis");
+            return;
+        }
         if (source === "hybrid" && !selectedJD) {
             toast.error("Please select a Job Description for hybrid roadmap");
             return;
@@ -77,6 +83,9 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
             const body: any = { source };
             if (source === "cv" || source === "hybrid") {
                 body.cvSource = selectedCV;
+            }
+            if (source === "cv" && targetRole.trim()) {
+                body.targetRole = targetRole.trim();
             }
             if (source === "hybrid") {
                 body.jdSource = selectedJD;
@@ -235,6 +244,40 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                         </div>
                     )}
 
+                    {/* Target Job Role - only for CV Analysis */}
+                    {source === "cv" && (
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Target className="h-4 w-4 text-purple-400" />
+                                Target Job Role
+                            </Label>
+                            <Input
+                                placeholder="e.g., Senior Frontend Developer, Data Scientist, DevOps Engineer..."
+                                value={targetRole}
+                                onChange={(e) => setTargetRole(e.target.value)}
+                                className="bg-black/40 border-white/10 text-white placeholder:text-white/40"
+                            />
+                            <p className="text-xs text-white/50">
+                                Enter the job role you&apos;re aiming for. We&apos;ll analyze your CV against industry requirements for this role.
+                            </p>
+                            
+                            {/* Target Role Info Card */}
+                            {targetRole.trim() && (
+                                <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                                    <div className="flex items-start gap-2">
+                                        <Briefcase className="h-4 w-4 text-purple-400 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm text-purple-300 font-medium">Targeting: {targetRole}</p>
+                                            <p className="text-xs text-purple-300/70 mt-1">
+                                                Your roadmap will be customized to help you become a qualified {targetRole}.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {source === "hybrid" && (
                         <div className="space-y-2">
                             <Label>Select Job Description</Label>
@@ -263,7 +306,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                         <Button
                             onClick={handleGenerate}
                             disabled={isGenerating || 
-                                (source === "cv" && !selectedCV) ||
+                                (source === "cv" && (!selectedCV || !targetRole.trim())) ||
                                 (source === "hybrid" && (!selectedCV || !selectedJD))}
                             className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-900/20"
                         >
@@ -289,8 +332,8 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                 <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 text-purple-400">
                     <p className="text-sm font-medium mb-2">💡 How it works:</p>
                     <ul className="text-xs space-y-1 text-purple-300/80">
-                        <li>• <strong>CV Analysis:</strong> Identifies skill gaps and creates roadmap to fill them</li>
-                        <li>• <strong>Hybrid:</strong> Combines CV and JD analysis for targeted skill development</li>
+                        <li>• <strong>CV Analysis:</strong> Enter your target role, and we&apos;ll analyze your CV against industry requirements to identify skill gaps and create a personalized roadmap</li>
+                        <li>• <strong>Hybrid:</strong> Combines your CV with a specific job description for targeted skill development</li>
                     </ul>
                 </div>
             )}

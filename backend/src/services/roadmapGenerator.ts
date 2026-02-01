@@ -47,6 +47,7 @@ export class RoadmapGenerator {
             jdText?: string;
             cvSource?: string;
             jdSource?: string;
+            targetRole?: string; // Target job role for CV analysis
             semanticMatchResult?: any;
         }
     ): Promise<Roadmap> {
@@ -69,7 +70,8 @@ export class RoadmapGenerator {
         switch (source) {
             case "cv":
                 if (!inputData.cvText) throw new Error("CV text is required");
-                roadmap = await this.generateFromCV(userId, userProfile, inputData.cvText);
+                if (!inputData.targetRole) throw new Error("Target job role is required for CV analysis");
+                roadmap = await this.generateFromCV(userId, userProfile, inputData.cvText, inputData.targetRole);
                 break;
             case "hybrid":
                 if (!inputData.cvText || !inputData.jdText) {
@@ -92,21 +94,46 @@ export class RoadmapGenerator {
 
     /**
      * Generate roadmap from CV analysis using AI Agent
+     * @param targetRole - The job role the user is aiming for
      */
-    private async generateFromCV(userId: string, profile: UserProfile, cvText: string): Promise<Roadmap> {
+    private async generateFromCV(userId: string, profile: UserProfile, cvText: string, targetRole: string): Promise<Roadmap> {
+        console.log(`🎯 Analyzing CV for target role: ${targetRole}`);
+        
         // Extract skills from CV for gap analysis
         const currentSkills = await this.extractSkillsFromCV(cvText);
         
-        // Identify skill gaps based on learning goals
-        const skillGaps = await this.analyzeSkillGaps(currentSkills, profile.learningGoals || []);
+        // Identify skill gaps based on target role and learning goals
+        const skillGaps = await this.analyzeSkillGapsForRole(currentSkills, targetRole, profile.learningGoals || []);
         
-        // Use AI-powered Roadmap Agent
-        const roadmap = await this.roadmapAgent.generateFromCV(userId, profile, cvText, skillGaps);
+        // Use AI-powered Roadmap Agent with target role
+        const roadmap = await this.roadmapAgent.generateFromCV(userId, profile, cvText, skillGaps, targetRole);
         
         // Ensure userId is ObjectId
         roadmap.userId = new ObjectId(userId);
         
         return roadmap;
+    }
+    
+    /**
+     * Analyze skill gaps based on target job role
+     */
+    private async analyzeSkillGapsForRole(
+        currentSkills: string[], 
+        targetRole: string,
+        learningGoals: string[]
+    ): Promise<any[]> {
+        // This will be enhanced by the AI agent to identify gaps specific to the target role
+        // For now, we pass the information to the agent for comprehensive analysis
+        console.log(`📊 Analyzing skill gaps for role: ${targetRole}`);
+        console.log(`📝 Current skills found: ${currentSkills.length}`);
+        
+        // Return basic structure - the AI agent will do the detailed analysis
+        return currentSkills.map(skill => ({
+            skill,
+            importance: "medium" as const,
+            currentLevel: 50,
+            requiredLevel: 80
+        }));
     }
 
     /**

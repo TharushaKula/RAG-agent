@@ -47,6 +47,7 @@ export interface Roadmap {
     sourceData?: {
         cvSource?: string;
         jdSource?: string;
+        targetRole?: string; // Target job role for CV analysis
         semanticMatchScore?: number;
     };
     stages: RoadmapStage[];

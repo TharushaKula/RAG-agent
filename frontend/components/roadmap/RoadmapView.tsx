@@ -49,6 +49,7 @@ interface RoadmapData {
     sourceData?: {
         cvSource?: string;
         jdSource?: string;
+        targetRole?: string;
         semanticMatchScore?: number;
     };
     stages: RoadmapStage[];
@@ -363,6 +364,15 @@ export function RoadmapView() {
                         </div>
                         {roadmap.description && (
                             <p className="text-sm text-white/50 mt-0.5">{roadmap.description}</p>
+                        )}
+                        {/* Display target role if available */}
+                        {roadmap.sourceData?.targetRole && (
+                            <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="border-purple-500/30 text-purple-400 bg-purple-500/10 text-xs">
+                                    <Target className="w-3 h-3 mr-1" />
+                                    Targeting: {roadmap.sourceData.targetRole}
+                                </Badge>
+                            </div>
                         )}
                     </div>
                 </div>
