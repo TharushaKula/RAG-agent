@@ -798,8 +798,32 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
     }
 
     /**
+     * Fetch podcasts from iTunes API for module topic
+     */
+    private async fetchPodcastsFromItunes(searchQuery: string, limit: number = 3): Promise<Array<{ id: number; name: string; artist: string; artwork: string; url: string; trackCount: number }>> {
+        try {
+            const encodedTerm = encodeURIComponent(searchQuery);
+            const url = `https://itunes.apple.com/search?term=${encodedTerm}&media=podcast&entity=podcast&limit=${limit}`;
+            const res = await fetch(url);
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data.results || []).map((item: any) => ({
+                id: item.collectionId,
+                name: item.collectionName,
+                artist: item.artistName,
+                artwork: item.artworkUrl600 || item.artworkUrl100,
+                url: item.collectionViewUrl,
+                trackCount: item.trackCount || 0
+            }));
+        } catch (err: any) {
+            console.warn(`⚠️ iTunes podcasts fetch failed for "${searchQuery}":`, err?.message || err);
+            return [];
+        }
+    }
+
+    /**
      * Fetch learning resources from all available APIs, then recommend based on user profile.
-     * - Learning style: prefer resource types that match (visual→video/course, reading→article/book, hands-on→course, audio→video).
+     * - Learning style: prefer resource types that match (visual→video/course, reading→article/book, hands-on→course, audio→video, podcasts→podcast).
      * - Time availability: prefer shorter resources for minimal time, allow longer for intensive/fulltime.
      */
     private async fetchLearningResources(
@@ -812,6 +836,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         const searchQuery = `${moduleTitle} ${category}`;
         const learningStyles = profile.learningStyles || [];
         const timeAvailability = profile.timeAvailability || "moderate";
+        const hasPodcastsStyle = learningStyles.map(s => s.toLowerCase()).includes("podcasts");
 
         // Request counts per source based on primary learning style (so we get more of preferred types)
         const counts = this.getRecommendedSourceCounts(learningStyles);
@@ -822,13 +847,19 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             return this.microsoftLearnService.searchResources(searchQuery, 4).catch(() => []);
         })();
 
-        const [youtubeVideos, msLearnResources, mitCourses, books] = await Promise.allSettled([
+        // Fetch podcasts from iTunes when user has podcasts in their learning style
+        const podcastsPromise = hasPodcastsStyle
+            ? this.fetchPodcastsFromItunes(searchQuery, counts.podcasts).catch(() => [])
+            : Promise.resolve([]);
+
+        const [youtubeVideos, msLearnResources, mitCourses, books, podcasts] = await Promise.allSettled([
             this.youtubeService.isConfigured()
                 ? this.youtubeService.searchVideos(searchQuery, counts.youtube).catch(() => [])
                 : Promise.resolve([]),
             msLearnPromise,
             this.mitOcwService.searchCourses(searchQuery, counts.mit).catch(() => []),
-            this.openLibraryService.searchBooks(searchQuery, counts.books).catch(() => [])
+            this.openLibraryService.searchBooks(searchQuery, counts.books).catch(() => []),
+            podcastsPromise
         ]);
 
         // Process YouTube videos
@@ -893,23 +924,40 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Recommend by profile, then ensure mix: videos + courses + books; at least 3, max 6
+        // Process podcasts from iTunes (when user has podcasts in learning style)
+        if (podcasts.status === "fulfilled" && podcasts.value.length > 0) {
+            for (const podcast of podcasts.value) {
+                resources.push({
+                    id: `podcast-${podcast.id}`,
+                    type: "podcast",
+                    title: podcast.name,
+                    url: podcast.url,
+                    description: `${podcast.artist}${podcast.trackCount > 0 ? ` · ${podcast.trackCount} episodes` : ""}`,
+                    difficulty: "intermediate",
+                    completed: false
+                });
+            }
+        }
+
+        // Recommend by profile, then ensure mix: videos + courses + books + podcasts; at least 3, max 6
         const scored = this.recommendByProfile(resources, learningStyles, timeAvailability);
-        return this.selectWithDiversity(scored, 6);
+        return this.selectWithDiversity(scored, 6, hasPodcastsStyle);
     }
 
     /**
-     * Select up to maxResources ensuring a mix: videos, courses, and books.
+     * Select up to maxResources ensuring a mix: videos, courses, books, and optionally podcasts.
      * - Max 2 videos so we don't fill all slots with YouTube.
      * - Prefer courses (MS Learn, MIT OCW) so roadmap includes courses.
      * - At least 1 book when available.
+     * - When user has podcasts style: include up to 2 podcasts.
      */
-    private selectWithDiversity(resources: LearningResource[], maxResources: number): LearningResource[] {
+    private selectWithDiversity(resources: LearningResource[], maxResources: number, hasPodcastsStyle: boolean = false): LearningResource[] {
         if (resources.length <= maxResources) return resources.slice(0, Math.max(maxResources, 3));
 
         const videos = resources.filter(r => r.type === "video");
         const coursesOrArticles = resources.filter(r => r.type === "course" || r.type === "article");
         const books = resources.filter(r => r.type === "book");
+        const podcasts = resources.filter(r => r.type === "podcast");
         const pickedIds = new Set<string>();
         const result: LearningResource[] = [];
 
@@ -917,6 +965,16 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         for (const r of videos.slice(0, 2)) {
             result.push(r);
             pickedIds.add(r.id);
+        }
+        // Add up to 2 podcasts when user has podcasts in learning style
+        if (hasPodcastsStyle && podcasts.length > 0) {
+            for (const r of podcasts.slice(0, 2)) {
+                if (result.length >= maxResources) break;
+                if (!pickedIds.has(r.id)) {
+                    result.push(r);
+                    pickedIds.add(r.id);
+                }
+            }
         }
         // Add at least 1 course/article when available
         for (const r of coursesOrArticles.slice(0, 2)) {
@@ -947,15 +1005,19 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
 
     /**
      * Get per-source request counts. Always request courses (MS Learn, MIT) and books so we can show a mix.
+     * When user has "podcasts" in learning style, request podcasts from iTunes.
      */
-    private getRecommendedSourceCounts(learningStyles: string[]): { youtube: number; msLearn: number; mit: number; books: number } {
+    private getRecommendedSourceCounts(learningStyles: string[]): { youtube: number; msLearn: number; mit: number; books: number; podcasts: number } {
         const styles = learningStyles.map(s => s.toLowerCase());
+        const hasPodcasts = styles.includes("podcasts");
+        const base = { youtube: 2, msLearn: 2, mit: 2, books: 2, podcasts: hasPodcasts ? 3 : 0 };
         for (const s of styles) {
-            if (s === "visual" || s === "audio") return { youtube: 3, msLearn: 2, mit: 2, books: 2 };
-            if (s === "reading") return { youtube: 1, msLearn: 2, mit: 2, books: 2 };
-            if (s === "hands-on") return { youtube: 1, msLearn: 3, mit: 2, books: 2 };
+            if (s === "visual" || s === "audio") return { ...base, youtube: 3 };
+            if (s === "reading") return { ...base, youtube: 1 };
+            if (s === "hands-on") return { ...base, youtube: 1, msLearn: 3 };
+            if (s === "podcasts") return { ...base, podcasts: 3 };
         }
-        return { youtube: 2, msLearn: 2, mit: 2, books: 2 };
+        return base;
     }
 
     /**
@@ -1056,7 +1118,8 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             "visual": ["video", "course"],
             "reading": ["article", "book"],
             "hands-on": ["project", "course"],
-            "audio": ["video", "podcast"]
+            "audio": ["video", "podcast"],
+            "podcasts": ["podcast"]
         };
 
         let score = 0;
