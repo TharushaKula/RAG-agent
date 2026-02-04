@@ -470,7 +470,7 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as any)}
                                         className={`aspect-video rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors ${activeTab === tab.id
-                                            ? "bg-primary text-primary-foreground"
+                                            ? "bg-gradient-to-br from-[#37b594] to-[#2a8c73] text-black shadow-lg shadow-[#37b594]/20 border-transparent"
                                             : "bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/5"}`}
                                     >
                                         <tab.icon className="h-6 w-6" />

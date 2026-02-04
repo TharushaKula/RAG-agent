@@ -137,7 +137,7 @@ export function AppSidebar({
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <a href="#">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#37b594] to-[#2a8c73] text-black">
                                     <Bot className="size-4" />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">

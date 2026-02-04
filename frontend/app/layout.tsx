@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RAG Agent",
-  description: "RAG Agent",
+  title: "Skill Bridge",
+  description: "Skill Bridge",
 };
 
 import { AuthProvider } from "../context/AuthContext";

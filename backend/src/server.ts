@@ -62,7 +62,7 @@ import podcastsRoutes from "./routes/podcastsRoutes";
 app.use("/api/podcasts", podcastsRoutes);
 
 app.get("/", (req, res) => {
-    res.send("RAG Agent Backend Running");
+    res.send("Skill Bridge Backend Running");
 });
 
 // Socket.IO Handling
