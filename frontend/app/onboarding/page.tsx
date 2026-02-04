@@ -146,7 +146,7 @@ export default function OnboardingPage() {
                 targetProfession,
                 onboardingCompleted: true
             });
-            toast.success("Profile ready! Welcome to RAG Agent.");
+            toast.success("Profile ready! Welcome to Skill Bridge");
             router.push("/");
         } catch (err: any) {
             toast.error(err.message);

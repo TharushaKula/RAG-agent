@@ -76,7 +76,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
 
         setIsGenerating(true);
         setIsComplete(false); // Reset completion state
-        
+
         try {
             toast.info("Generating your personalized roadmap... This may take a moment.");
 
@@ -121,7 +121,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
                     rawBody ||
                     `Failed to generate roadmap (status ${res.status})`;
 
-                console.error("Roadmap generation failed:", 
+                console.error("Roadmap generation failed:",
                     "status:", res.status,
                     "statusText:", res.statusText,
                     "body:", rawBody,
@@ -187,7 +187,7 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
 
             {/* Show progress bar when generating */}
             {isGenerating && (
-                <RoadmapProgress 
+                <RoadmapProgress
                     isGenerating={isGenerating}
                     isComplete={isComplete}
                     onComplete={() => {
@@ -200,131 +200,131 @@ export function RoadmapGenerator({ onGenerated, onCancel }: RoadmapGeneratorProp
             {/* Show form only when not generating */}
             {!isGenerating && (
                 <Card className="bg-black/20 backdrop-blur-xl border-white/10 text-white shadow-2xl">
-                <CardHeader>
-                    <CardTitle>Roadmap Source</CardTitle>
-                    <CardDescription className="text-white/60">
-                        Choose how you want to generate your roadmap
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                        <Label>Select Source</Label>
-                        <Select value={source} onValueChange={(value: any) => setSource(value)}>
-                            <SelectTrigger className="bg-black/40 border-white/10 text-white">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="cv">CV Analysis (Skill Gaps)</SelectItem>
-                                <SelectItem value="hybrid">Hybrid (CV + JD)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {(source === "cv" || source === "hybrid") && (
+                    <CardHeader>
+                        <CardTitle>Roadmap Source</CardTitle>
+                        <CardDescription className="text-white/60">
+                            Choose how you want to generate your roadmap
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
                         <div className="space-y-2">
-                            <Label>Select CV</Label>
-                            {availableFiles.cv.length > 0 ? (
-                                <Select value={selectedCV} onValueChange={setSelectedCV}>
-                                    <SelectTrigger className="bg-black/40 border-white/10 text-white">
-                                        <SelectValue placeholder="Select a CV..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableFiles.cv.map((cv) => (
-                                            <SelectItem key={cv} value={cv}>
-                                                {cv}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <p className="text-sm text-white/50">
-                                    No CVs found. Upload a CV first in the CV Uploader section.
-                                </p>
-                            )}
+                            <Label>Select Source</Label>
+                            <Select value={source} onValueChange={(value: any) => setSource(value)}>
+                                <SelectTrigger className="bg-black/40 border-white/10 text-white">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="cv">CV Analysis (Skill Gaps)</SelectItem>
+                                    <SelectItem value="hybrid">Hybrid (CV + JD)</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    )}
 
-                    {/* Target Job Role - only for CV Analysis */}
-                    {source === "cv" && (
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                                <Target className="h-4 w-4 text-purple-400" />
-                                Target Job Role
-                            </Label>
-                            <Input
-                                placeholder="e.g., Senior Frontend Developer, Data Scientist, DevOps Engineer..."
-                                value={targetRole}
-                                onChange={(e) => setTargetRole(e.target.value)}
-                                className="bg-black/40 border-white/10 text-white placeholder:text-white/40"
-                            />
-                            <p className="text-xs text-white/50">
-                                Enter the job role you&apos;re aiming for. We&apos;ll analyze your CV against industry requirements for this role.
-                            </p>
-                            
-                            {/* Target Role Info Card */}
-                            {targetRole.trim() && (
-                                <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                                    <div className="flex items-start gap-2">
-                                        <Briefcase className="h-4 w-4 text-purple-400 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm text-purple-300 font-medium">Targeting: {targetRole}</p>
-                                            <p className="text-xs text-purple-300/70 mt-1">
-                                                Your roadmap will be customized to help you become a qualified {targetRole}.
-                                            </p>
+                        {(source === "cv" || source === "hybrid") && (
+                            <div className="space-y-2">
+                                <Label>Select CV</Label>
+                                {availableFiles.cv.length > 0 ? (
+                                    <Select value={selectedCV} onValueChange={setSelectedCV}>
+                                        <SelectTrigger className="bg-black/40 border-white/10 text-white">
+                                            <SelectValue placeholder="Select a CV..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableFiles.cv.map((cv) => (
+                                                <SelectItem key={cv} value={cv}>
+                                                    {cv}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <p className="text-sm text-white/50">
+                                        No CVs found. Upload a CV first in the CV Uploader section.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Target Job Role - only for CV Analysis */}
+                        {source === "cv" && (
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Target className="h-4 w-4 text-purple-400" />
+                                    Target Job Role
+                                </Label>
+                                <Input
+                                    placeholder="e.g., Senior Frontend Developer, Data Scientist, DevOps Engineer..."
+                                    value={targetRole}
+                                    onChange={(e) => setTargetRole(e.target.value)}
+                                    className="bg-black/40 border-white/10 text-white placeholder:text-white/40"
+                                />
+                                <p className="text-xs text-white/50">
+                                    Enter the job role you&apos;re aiming for. We&apos;ll analyze your CV against industry requirements for this role.
+                                </p>
+
+                                {/* Target Role Info Card */}
+                                {targetRole.trim() && (
+                                    <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                                        <div className="flex items-start gap-2">
+                                            <Briefcase className="h-4 w-4 text-purple-400 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-purple-300 font-medium">Targeting: {targetRole}</p>
+                                                <p className="text-xs text-purple-300/70 mt-1">
+                                                    Your roadmap will be customized to help you become a qualified {targetRole}.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
+                        )}
 
-                    {source === "hybrid" && (
-                        <div className="space-y-2">
-                            <Label>Select Job Description</Label>
-                            {availableFiles.jd.length > 0 ? (
-                                <Select value={selectedJD} onValueChange={setSelectedJD}>
-                                    <SelectTrigger className="bg-black/40 border-white/10 text-white">
-                                        <SelectValue placeholder="Select a Job Description..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableFiles.jd.map((jd) => (
-                                            <SelectItem key={jd} value={jd}>
-                                                {jd}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <p className="text-sm text-white/50">
-                                    No Job Descriptions found. Upload a JD first in the CV Uploader section.
-                                </p>
-                            )}
-                        </div>
-                    )}
+                        {source === "hybrid" && (
+                            <div className="space-y-2">
+                                <Label>Select Job Description</Label>
+                                {availableFiles.jd.length > 0 ? (
+                                    <Select value={selectedJD} onValueChange={setSelectedJD}>
+                                        <SelectTrigger className="bg-black/40 border-white/10 text-white">
+                                            <SelectValue placeholder="Select a Job Description..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableFiles.jd.map((jd) => (
+                                                <SelectItem key={jd} value={jd}>
+                                                    {jd}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <p className="text-sm text-white/50">
+                                        No Job Descriptions found. Upload a JD first in the CV Uploader section.
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
-                    <div className="pt-4">
-                        <Button
-                            onClick={handleGenerate}
-                            disabled={isGenerating || 
-                                (source === "cv" && (!selectedCV || !targetRole.trim())) ||
-                                (source === "hybrid" && (!selectedCV || !selectedJD))}
-                            className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-900/20"
-                        >
-                            {isGenerating ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Generating...
-                                </>
-                            ) : (
-                                <>
-                                    <Sparkles className="mr-2 h-4 w-4" />
-                                    Generate Roadmap
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                        <div className="pt-4">
+                            <Button
+                                onClick={handleGenerate}
+                                disabled={isGenerating ||
+                                    (source === "cv" && (!selectedCV || !targetRole.trim())) ||
+                                    (source === "hybrid" && (!selectedCV || !selectedJD))}
+                                className="w-full bg-gradient-to-r from-[#37b594] to-[#2a8c73] hover:from-[#2a8c73] hover:to-[#1e6f5c] text-black shadow-lg shadow-[#37b594]/20"
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles className="mr-2 h-4 w-4" />
+                                        Generate Roadmap
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             )}
 
             {/* Info card - show only when not generating */}

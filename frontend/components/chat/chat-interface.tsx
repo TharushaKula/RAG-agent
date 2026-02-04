@@ -323,7 +323,7 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                             <BreadcrumbList>
                                 <BreadcrumbItem className="hidden md:block">
                                     <BreadcrumbLink href="#">
-                                        RAG Agent
+                                        Skill Bridge
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator className="hidden md:block" />

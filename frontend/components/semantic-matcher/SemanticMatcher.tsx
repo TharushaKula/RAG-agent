@@ -139,7 +139,7 @@ export function SemanticMatcher() {
             toast.info("Performing semantic analysis... This may take a moment.");
 
             const formData = new FormData();
-            
+
             // Add CV
             if (useDatabaseCV) {
                 formData.append("cvSource", selectedCV);
@@ -392,7 +392,7 @@ export function SemanticMatcher() {
                     size="lg"
                     onClick={handleMatch}
                     disabled={isMatching}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-900/20"
+                    className="bg-gradient-to-r from-[#37b594] to-[#2a8c73] hover:from-[#2a8c73] hover:to-[#1e6f5c] text-black shadow-lg shadow-[#37b594]/20"
                 >
                     {isMatching ? (
                         <>
