@@ -43,7 +43,7 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center p-4 bg-gradient-to-br from-violet-600 via-pink-500 to-orange-400 font-sans">
+        <div className="flex min-h-screen w-full items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-[#37b594] to-emerald-900 font-sans">
             {/* Main Glass Card */}
             <div className="w-full max-w-5xl overflow-hidden rounded-[2.5rem] bg-black/20 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col lg:flex-row min-h-[600px]">
 
@@ -53,7 +53,7 @@ export default function SignupPage() {
 
                         {/* Background Decoration */}
                         <div className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/4 w-96 h-96 bg-blue-600/20 blur-[100px] rounded-full" />
-                        <div className="absolute bottom-0 right-0 w-64 h-64 bg-pink-600/10 blur-[80px] rounded-full" />
+                        <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-600/10 blur-[80px] rounded-full" />
 
                         {/* Starburst Graphic */}
                         <div className="absolute top-1/2 left-10 -translate-y-1/2 opacity-40 pointer-events-none">
@@ -83,7 +83,7 @@ export default function SignupPage() {
                                         <ArrowLeft className="w-6 h-6" />
                                     </button>
                                 </Link>
-                                <button className="h-12 w-12 rounded-xl bg-[#FF9F89] flex items-center justify-center text-black hover:bg-[#ff8f75] transition-colors opacity-50 cursor-not-allowed">
+                                <button className="h-12 w-12 rounded-xl bg-[#37b594] flex items-center justify-center text-black hover:bg-[#2a8c73] transition-colors opacity-50 cursor-not-allowed">
                                     <ArrowRight className="w-6 h-6" />
                                 </button>
                             </div>
@@ -152,7 +152,7 @@ export default function SignupPage() {
                                 required
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full h-12 rounded-full border-none bg-black/40 px-6 text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-pink-500/50 transition-all font-medium"
+                                className="w-full h-12 rounded-full border-none bg-black/40 px-6 text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-[#37b594]/50 transition-all font-medium"
                                 placeholder="John Doe"
                             />
                         </div>
@@ -163,7 +163,7 @@ export default function SignupPage() {
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full h-12 rounded-full border-none bg-black/40 px-6 text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-pink-500/50 transition-all font-medium"
+                                className="w-full h-12 rounded-full border-none bg-black/40 px-6 text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-[#37b594]/50 transition-all font-medium"
                                 placeholder="name@example.com"
                             />
                         </div>
@@ -174,7 +174,7 @@ export default function SignupPage() {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full h-12 rounded-full border-none bg-black/40 px-6 text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-pink-500/50 transition-all font-medium"
+                                className="w-full h-12 rounded-full border-none bg-black/40 px-6 text-sm text-white placeholder-white/30 focus:ring-2 focus:ring-[#37b594]/50 transition-all font-medium"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -182,7 +182,7 @@ export default function SignupPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full h-12 rounded-full bg-[#FF9F89] text-black font-bold text-sm hover:bg-[#ff8f75] hover:shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 mt-2"
+                            className="w-full h-12 rounded-full bg-[#37b594] text-black font-bold text-sm hover:bg-[#2a8c73] hover:shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 mt-2"
                         >
                             {isLoading ? <Loader2 className="animate-spin h-5 w-5 mx-auto text-black" /> : "Sign Up"}
                         </button>

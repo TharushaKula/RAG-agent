@@ -167,13 +167,13 @@ export default function OnboardingPage() {
     const progress = ((currentStep + 1) / STEPS.length) * 100;
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center p-4 bg-gradient-to-br from-violet-600 via-pink-500 to-orange-400 font-sans">
+        <div className="flex min-h-screen w-full items-center justify-center p-4 bg-gradient-to-br from-gray-900 via-[#37b594] to-emerald-900 font-sans">
             <div className="w-full max-w-2xl bg-black/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] overflow-hidden relative min-h-[600px] flex flex-col">
 
                 {/* Amazing Progress Bar */}
                 <div className="absolute top-0 left-0 w-full h-2 bg-white/5 overflow-hidden">
                     <motion.div
-                        className="h-full bg-gradient-to-r from-[#FF9F89] via-pink-400 to-violet-400 shadow-[0_0_20px_rgba(255,159,137,0.6)]"
+                        className="h-full bg-gradient-to-r from-[#37b594] via-emerald-400 to-teal-400 shadow-[0_0_20px_rgba(55,181,148,0.6)]"
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
                         transition={{ type: "spring", stiffness: 100, damping: 20 }}
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
                         {STEPS.map((_, idx) => (
                             <div
                                 key={idx}
-                                className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentStep ? "w-8 bg-[#FF9F89]" : "w-1.5 bg-white/20"
+                                className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentStep ? "w-8 bg-[#37b594]" : "w-1.5 bg-white/20"
                                     }`}
                             />
                         ))}
@@ -205,7 +205,7 @@ export default function OnboardingPage() {
                                 <motion.div
                                     initial={{ scale: 0.8, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
-                                    className="h-16 w-16 bg-gradient-to-br from-[#FF9F89] to-[#ff8f75] rounded-3xl flex items-center justify-center text-black mb-6 mx-auto shadow-2xl shadow-[#FF9F89]/20"
+                                    className="h-16 w-16 bg-gradient-to-br from-[#37b594] to-[#2a8c73] rounded-3xl flex items-center justify-center text-black mb-6 mx-auto shadow-2xl shadow-[#37b594]/20"
                                 >
                                     {(() => {
                                         const Icon = STEPS[currentStep].icon;
@@ -225,10 +225,10 @@ export default function OnboardingPage() {
                                                 value={age}
                                                 onChange={(e) => setAge(e.target.value)}
                                                 placeholder="Enter age"
-                                                className="w-full bg-white/5 border-2 border-white/10 rounded-2xl p-6 text-center text-4xl font-bold text-white placeholder-white/10 focus:outline-none focus:border-[#FF9F89]/50 focus:bg-white/10 transition-all hover:bg-white/10"
+                                                className="w-full bg-white/5 border-2 border-white/10 rounded-2xl p-6 text-center text-4xl font-bold text-white placeholder-white/10 focus:outline-none focus:border-[#37b594]/50 focus:bg-white/10 transition-all hover:bg-white/10"
                                                 autoFocus
                                             />
-                                            <div className="absolute inset-0 rounded-2xl border-2 border-[#FF9F89] opacity-0 group-focus-within:opacity-20 transition-opacity pointer-events-none" />
+                                            <div className="absolute inset-0 rounded-2xl border-2 border-[#37b594] opacity-0 group-focus-within:opacity-20 transition-opacity pointer-events-none" />
                                         </div>
                                         <p className="text-center text-white/30 mt-4 text-sm font-medium">Numbers only, please!</p>
                                     </div>
@@ -241,8 +241,8 @@ export default function OnboardingPage() {
                                                 key={style.id}
                                                 onClick={() => toggleItem(style.id, learningStyles, setLearningStyles)}
                                                 className={`p-4 rounded-2xl border transition-all text-left flex items-center gap-4 group ${learningStyles.includes(style.id)
-                                                        ? "bg-[#FF9F89] border-transparent text-black"
-                                                        : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                                                    ? "bg-[#37b594] border-transparent text-black"
+                                                    : "bg-white/5 border-white/10 text-white hover:bg-white/10"
                                                     }`}
                                             >
                                                 <div className={`p-3 rounded-xl ${learningStyles.includes(style.id) ? "bg-black/10" : "bg-white/5"}`}>
@@ -262,8 +262,8 @@ export default function OnboardingPage() {
                                                 key={time.id}
                                                 onClick={() => setTimeAvailability(time.id)}
                                                 className={`w-full p-5 rounded-2xl border transition-all text-left flex items-center justify-between group ${timeAvailability === time.id
-                                                        ? "bg-[#FF9F89] border-transparent text-black"
-                                                        : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                                                    ? "bg-[#37b594] border-transparent text-black"
+                                                    : "bg-white/5 border-white/10 text-white hover:bg-white/10"
                                                     }`}
                                             >
                                                 <div>
@@ -289,8 +289,8 @@ export default function OnboardingPage() {
                                                 key={goal.id}
                                                 onClick={() => toggleItem(goal.id, learningGoals, setLearningGoals)}
                                                 className={`w-full p-5 rounded-2xl border transition-all text-left flex items-center gap-4 group ${learningGoals.includes(goal.id)
-                                                        ? "bg-[#FF9F89] border-transparent text-black"
-                                                        : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                                                    ? "bg-[#37b594] border-transparent text-black"
+                                                    : "bg-white/5 border-white/10 text-white hover:bg-white/10"
                                                     }`}
                                             >
                                                 <div className={`p-3 rounded-xl ${learningGoals.includes(goal.id) ? "bg-black/10" : "bg-white/5"}`}>
@@ -316,10 +316,10 @@ export default function OnboardingPage() {
                                                 value={targetProfession}
                                                 onChange={(e) => setTargetProfession(e.target.value)}
                                                 placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
-                                                className="w-full bg-white/5 border-2 border-white/10 rounded-2xl p-6 text-center text-xl font-semibold text-white placeholder-white/20 focus:outline-none focus:border-[#FF9F89]/50 focus:bg-white/10 transition-all hover:bg-white/10"
+                                                className="w-full bg-white/5 border-2 border-white/10 rounded-2xl p-6 text-center text-xl font-semibold text-white placeholder-white/20 focus:outline-none focus:border-[#37b594]/50 focus:bg-white/10 transition-all hover:bg-white/10"
                                                 autoFocus
                                             />
-                                            <div className="absolute inset-0 rounded-2xl border-2 border-[#FF9F89] opacity-0 group-focus-within:opacity-20 transition-opacity pointer-events-none" />
+                                            <div className="absolute inset-0 rounded-2xl border-2 border-[#37b594] opacity-0 group-focus-within:opacity-20 transition-opacity pointer-events-none" />
                                         </div>
                                         <p className="text-center text-white/30 mt-4 text-sm font-medium">This helps us create more targeted learning paths for you.</p>
                                     </div>
@@ -345,7 +345,7 @@ export default function OnboardingPage() {
                         <button
                             onClick={handleNext}
                             disabled={isNextDisabled() || isLoading}
-                            className="bg-[#FF9F89] text-black h-14 px-10 rounded-full font-black text-sm tracking-widest flex items-center gap-3 hover:bg-[#ffb09e] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-[0_16px_32px_-8px_rgba(255,159,137,0.4)] hover:shadow-[0_20px_40px_-8px_rgba(255,159,137,0.5)] hover:scale-[1.05] active:scale-[0.95]"
+                            className="bg-[#37b594] text-black h-14 px-10 rounded-full font-black text-sm tracking-widest flex items-center gap-3 hover:bg-[#4ccfa9] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-[0_16px_32px_-8px_rgba(55,181,148,0.4)] hover:shadow-[0_20px_40px_-8px_rgba(55,181,148,0.5)] hover:scale-[1.05] active:scale-[0.95]"
                         >
                             {isLoading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -365,8 +365,8 @@ export default function OnboardingPage() {
                 </div>
 
                 {/* Decorative background glow inside the card */}
-                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-violet-600/20 blur-[100px] rounded-full pointer-events-none" />
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-orange-600/20 blur-[100px] rounded-full pointer-events-none" />
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-teal-600/20 blur-[100px] rounded-full pointer-events-none" />
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-600/20 blur-[100px] rounded-full pointer-events-none" />
             </div>
         </div>
     );
