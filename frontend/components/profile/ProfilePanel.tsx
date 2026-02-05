@@ -14,6 +14,9 @@ import {
   Check,
   Save,
   Briefcase,
+  Map as MapIcon,
+  Plus,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 
 const LEARNING_STYLES = [
   { id: "video", label: "Video lectures" },
@@ -63,6 +67,10 @@ export function ProfilePanel() {
   const [learningGoals, setLearningGoals] = useState<LearningGoalId[]>([]);
   const [targetProfession, setTargetProfession] = useState("");
 
+  // Roadmap state
+  const [activeRoadmap, setActiveRoadmap] = useState<any>(null);
+  const [isLoadingRoadmap, setIsLoadingRoadmap] = useState(true);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
@@ -76,8 +84,32 @@ export function ProfilePanel() {
       setTimeAvailability((user.timeAvailability || "") as TimeAvailabilityId | "");
       setLearningGoals((user.learningGoals || []) as LearningGoalId[]);
       setTargetProfession((user as any).targetProfession || "");
+
+      // Fetch active roadmap
+      if (token) {
+        fetchActiveRoadmap();
+      }
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, token]);
+
+  const fetchActiveRoadmap = async () => {
+    try {
+      const res = await fetch("/api/roadmap?activeOnly=true", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const roadmaps = data.roadmaps || [];
+        // Find active or take first
+        const active = roadmaps.find((r: any) => r.isActive) || roadmaps[0];
+        setActiveRoadmap(active || null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch roadmap for profile", error);
+    } finally {
+      setIsLoadingRoadmap(false);
+    }
+  };
 
   const toggleItem = <T extends string>(
     item: T,
@@ -268,6 +300,95 @@ export function ProfilePanel() {
         </Card>
 
         <div className="space-y-4">
+          {/* Current Learning Path Card */}
+          <Card className="border-white/10 bg-background/80 backdrop-blur overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-white/5 p-4 bg-white/2">
+              <div className="p-1.5 bg-green-500/10 rounded-md">
+                <MapIcon className="h-4 w-4 text-[#37b594]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Current Learning Path</p>
+                <p className="text-xs text-muted-foreground">
+                  Your roadmap progress
+                </p>
+              </div>
+              {activeRoadmap && (
+                <Badge variant="outline" className="ml-auto border-[#37b594]/30 text-[#37b594] bg-[#37b594]/5 text-[10px] uppercase tracking-wider">
+                  Active
+                </Badge>
+              )}
+            </div>
+
+            <div className="p-4">
+              {isLoadingRoadmap ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : activeRoadmap ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-semibold text-foreground/90 leading-tight">{activeRoadmap.title}</h3>
+                      <span className="text-xs font-mono font-medium text-[#37b594] bg-[#37b594]/10 px-2 py-0.5 rounded-full">
+                        {activeRoadmap.overallProgress}%
+                      </span>
+                    </div>
+                    {activeRoadmap.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {activeRoadmap.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Progress</span>
+                      <span>{Math.round(activeRoadmap.overallProgress)}% completed</span>
+                    </div>
+                    <Progress value={activeRoadmap.overallProgress} className="h-2 bg-white/5 [&>div]:bg-gradient-to-r [&>div]:from-[#37b594] [&>div]:to-[#2a8c73]" />
+                  </div>
+
+                  {activeRoadmap.sourceData?.targetRole && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-white/5 p-2 rounded-lg border border-white/5">
+                      <Target className="h-3.5 w-3.5 text-[#37b594]" />
+                      <span>Target: <span className="text-foreground/80">{activeRoadmap.sourceData.targetRole}</span></span>
+                    </div>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-white/10 hover:bg-white/5 hover:text-[#37b594] group"
+                    onClick={() => router.push("/?view=roadmap")}
+                  >
+                    Continue Learning
+                    <ArrowRight className="ml-2 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-6 space-y-3">
+                  <div className="mx-auto w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                    <MapIcon className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">No roadmap yet</p>
+                    <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+                      Create a personalized learning plan to reach your career goals.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-[#37b594] to-[#2a8c73] hover:from-[#2a8c73] hover:to-[#1e6f5c] text-black border-0 shadow-lg shadow-[#37b594]/20"
+                    onClick={() => router.push("/?view=roadmap")}
+                  >
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                    Generate Roadmap
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Card>
+
           <Card className="border-white/10 bg-background/80 backdrop-blur">
             <div className="flex items-center justify-between gap-2 border-b border-white/5 p-4">
               <div className="flex items-center gap-2">
@@ -293,11 +414,10 @@ export function ProfilePanel() {
                     onClick={() =>
                       toggleItem(style.id, learningStyles, setLearningStyles)
                     }
-                    className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-white/10 bg-background/60 text-muted-foreground hover:border-primary/60 hover:text-foreground"
-                    }`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-white/10 bg-background/60 text-muted-foreground hover:border-primary/60 hover:text-foreground"
+                      }`}
                   >
                     {active && <Check className="h-3 w-3" />}
                     {style.label}
@@ -325,11 +445,10 @@ export function ProfilePanel() {
                     key={time.id}
                     type="button"
                     onClick={() => setTimeAvailability(time.id)}
-                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs transition-colors ${
-                      active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-white/10 bg-background/60 text-muted-foreground hover:border-primary/60 hover:text-foreground"
-                    }`}
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs transition-colors ${active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-white/10 bg-background/60 text-muted-foreground hover:border-primary/60 hover:text-foreground"
+                      }`}
                   >
                     <span>{time.label}</span>
                     {active && <Check className="h-3 w-3" />}
@@ -359,11 +478,10 @@ export function ProfilePanel() {
                     onClick={() =>
                       toggleItem(goal.id, learningGoals, setLearningGoals)
                     }
-                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs transition-colors ${
-                      active
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-white/10 bg-background/60 text-muted-foreground hover:border-primary/60 hover:text-foreground"
-                    }`}
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs transition-colors ${active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-white/10 bg-background/60 text-muted-foreground hover:border-primary/60 hover:text-foreground"
+                      }`}
                   >
                     <span>{goal.label}</span>
                     {active && <Check className="h-3 w-3" />}
@@ -374,7 +492,7 @@ export function ProfilePanel() {
           </Card>
         </div>
       </div>
-    </motion.div>
+    </motion.div >
   );
 }
 
