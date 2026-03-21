@@ -21,6 +21,12 @@ interface YouTubeSearchResponse {
 let youtubeQuotaLogged = false;
 let youtubeErrorLogged = false;
 
+// Minimum view count threshold for quality filtering
+const MIN_VIEW_COUNT = 1000;
+// Duration bounds in seconds: skip very short (<2min) and very long (>3hr) videos
+const MIN_DURATION_SECONDS = 120;
+const MAX_DURATION_SECONDS = 10800;
+
 export class YouTubeService {
     private apiKey: string;
     private client: AxiosInstance;
@@ -39,7 +45,9 @@ export class YouTubeService {
     }
 
     /**
-     * Search for videos by query
+     * Search for educational videos with quality filtering.
+     * Fetches more results than needed, then filters by view count and duration
+     * to return only high-quality, relevant educational content.
      */
     async searchVideos(
         query: string,
@@ -51,20 +59,37 @@ export class YouTubeService {
         }
 
         try {
+            // Request 3x the needed results so we have enough after quality filtering
+            const fetchCount = Math.min(maxResults * 3, 30);
+
             const response = await this.client.get('/search', {
                 params: {
                     part: 'snippet',
                     q: query,
                     type: 'video',
-                    maxResults: Math.min(maxResults, 50), // YouTube API limit is 50
+                    maxResults: fetchCount,
                     order: order,
                     key: this.apiKey,
+                    relevanceLanguage: 'en',
+                    // Only include videos with CC or standard license (filters out some spam)
+                    safeSearch: 'strict',
+                    // Filter for medium/long videos to skip shorts and very short clips
+                    videoDuration: 'medium',  // 4-20 minutes
                 },
             });
 
-            const videoIds = response.data.items.map((item: any) => item.id.videoId).join(',');
-            
-            // Get detailed video information including duration
+            if (!response.data.items || response.data.items.length === 0) {
+                return [];
+            }
+
+            const videoIds = response.data.items
+                .filter((item: any) => item.id?.videoId)
+                .map((item: any) => item.id.videoId)
+                .join(',');
+
+            if (!videoIds) return [];
+
+            // Get detailed video information including duration and statistics
             const detailsResponse = await this.client.get('/videos', {
                 params: {
                     part: 'contentDetails,statistics,snippet',
@@ -73,7 +98,35 @@ export class YouTubeService {
                 },
             });
 
-            return this.formatVideos(response.data.items, detailsResponse.data.items);
+            const videos = this.formatVideos(response.data.items, detailsResponse.data.items);
+
+            // Apply quality filters: minimum views and appropriate duration
+            const filtered = videos.filter(video => {
+                const views = parseInt(video.viewCount || '0', 10);
+                const durationSec = this.parseDurationToSeconds(video.duration);
+
+                // Must have reasonable view count (quality signal)
+                if (views < MIN_VIEW_COUNT) return false;
+
+                // Duration must be in useful range (skip shorts and excessively long)
+                if (durationSec !== null) {
+                    if (durationSec < MIN_DURATION_SECONDS || durationSec > MAX_DURATION_SECONDS) return false;
+                }
+
+                return true;
+            });
+
+            // Sort by a quality score: combine relevance position with view count
+            filtered.sort((a, b) => {
+                const viewsA = parseInt(a.viewCount || '0', 10);
+                const viewsB = parseInt(b.viewCount || '0', 10);
+                // Log-scale view count to avoid mega-popular but irrelevant videos dominating
+                const scoreA = Math.log10(Math.max(viewsA, 1));
+                const scoreB = Math.log10(Math.max(viewsB, 1));
+                return scoreB - scoreA;
+            });
+
+            return filtered.slice(0, maxResults);
         } catch (error: any) {
             const status = error.response?.status;
             const isQuota = status === 403 || error.response?.data?.error?.message?.toLowerCase().includes('quota');
@@ -211,6 +264,19 @@ export class YouTubeService {
             return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Parse a human-readable duration string (e.g. "4:13", "1:02:30") to total seconds.
+     * Returns null if duration is not parseable.
+     */
+    private parseDurationToSeconds(duration: string): number | null {
+        if (!duration || duration === 'N/A') return null;
+        const parts = duration.split(':').map(Number);
+        if (parts.some(isNaN)) return null;
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        return null;
     }
 
     /**

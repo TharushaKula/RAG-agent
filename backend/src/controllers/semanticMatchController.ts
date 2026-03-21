@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { EmbeddingService } from "../services/embeddingService";
 import { SemanticMatcher } from "../services/semanticMatcher";
 import { getVectorStore } from "../services/ragService";
+import { ChatOllama } from "@langchain/ollama";
 import pdf from "pdf-parse";
 import clientPromise from "../config/db";
 
@@ -152,9 +153,16 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             });
         }
 
-        // Use semantic similarity threshold - focuses on meaning, not exact text
-        // Lower threshold allows for semantic matches even when wording differs
-        const matcher = new SemanticMatcher(embeddingService, 0.45);
+        // Initialize LLM for structured extraction and recommendation generation
+        const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+        const ollamaModel = process.env.OLLAMA_MODEL || "gpt-oss:20b-cloud";
+        const llm = new ChatOllama({
+            model: ollamaModel,
+            baseUrl: ollamaBaseUrl,
+            temperature: 0.3, // Low temperature for structured extraction
+        });
+
+        const matcher = new SemanticMatcher(embeddingService, 0.45, llm);
 
         // Perform semantic matching
         const matchResult = await matcher.match(

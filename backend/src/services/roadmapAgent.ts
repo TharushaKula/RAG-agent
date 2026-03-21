@@ -822,9 +822,50 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
     }
 
     /**
+     * Build optimized search queries for each resource source.
+     * Uses module title, description, and category to create targeted queries.
+     * Different sources benefit from different query styles:
+     * - YouTube: "topic tutorial" or "topic course" for educational content
+     * - Books: "topic programming" or "topic textbook" for book-specific results
+     * - Courses: module title directly (MS Learn/MIT have their own relevance)
+     */
+    private buildSearchQueries(
+        moduleTitle: string,
+        moduleDescription: string,
+        category: string
+    ): { youtube: string; books: string; courses: string; podcasts: string } {
+        // Extract key terms from module title (remove common filler words)
+        const stopWords = new Set(['introduction', 'to', 'and', 'the', 'of', 'in', 'for', 'with', 'a', 'an', 'on', 'using', 'understanding', 'basics', 'overview', 'module']);
+        const titleTokens = moduleTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9\s\-\.#\+]/g, '')
+            .split(/\s+/)
+            .filter(t => t.length >= 2 && !stopWords.has(t));
+
+        // Extract additional keywords from description (top 3 most meaningful)
+        const descTokens = moduleDescription
+            .toLowerCase()
+            .replace(/[^a-z0-9\s\-\.#\+]/g, '')
+            .split(/\s+/)
+            .filter(t => t.length >= 3 && !stopWords.has(t) && !titleTokens.includes(t))
+            .slice(0, 3);
+
+        // Core topic: title keywords (limited to keep query focused)
+        const coreTopic = titleTokens.slice(0, 5).join(' ');
+        // Enriched topic: adds a few description keywords for context
+        const enrichedTopic = [...titleTokens.slice(0, 4), ...descTokens.slice(0, 2)].join(' ');
+
+        return {
+            youtube: `${coreTopic} tutorial`,
+            books: `${coreTopic} programming`,
+            courses: enrichedTopic || moduleTitle,
+            podcasts: `${coreTopic} ${category}`,
+        };
+    }
+
+    /**
      * Fetch learning resources from all available APIs, then recommend based on user profile.
-     * - Learning style: prefer resource types that match (visual→video/course, reading→article/book, hands-on→course, audio→video, podcasts→podcast).
-     * - Time availability: prefer shorter resources for minimal time, allow longer for intensive/fulltime.
+     * Uses source-specific optimized queries and relevance scoring.
      */
     private async fetchLearningResources(
         moduleTitle: string,
@@ -833,34 +874,44 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         profile: UserProfile
     ): Promise<LearningResource[]> {
         const resources: LearningResource[] = [];
-        const searchQuery = `${moduleTitle} ${category}`;
         const learningStyles = profile.learningStyles || [];
         const timeAvailability = profile.timeAvailability || "moderate";
         const hasPodcastsStyle = learningStyles.map(s => s.toLowerCase()).includes("podcasts");
 
-        // Request counts per source based on primary learning style (so we get more of preferred types)
+        // Build optimized queries per source
+        const queries = this.buildSearchQueries(moduleTitle, moduleDescription, category);
+
+        // Request counts per source based on primary learning style
         const counts = this.getRecommendedSourceCounts(learningStyles);
 
+        // MS Learn: try module-specific query first, fall back to category
         const msLearnPromise = (async (): Promise<Array<{ id: string; title: string; description: string; url: string; duration?: string; level?: string; type?: string }>> => {
-            const byTopic = await this.microsoftLearnService.searchCoursesByTopic(category, 6).catch(() => []);
-            if (byTopic.length > 0) return byTopic;
-            return this.microsoftLearnService.searchResources(searchQuery, 4).catch(() => []);
+            const byQuery = await this.microsoftLearnService.searchResources(queries.courses, 6).catch(() => []);
+            if (byQuery.length > 0) return byQuery;
+            return this.microsoftLearnService.searchCoursesByTopic(category, 4).catch(() => []);
         })();
 
         // Fetch podcasts from iTunes when user has podcasts in their learning style
         const podcastsPromise = hasPodcastsStyle
-            ? this.fetchPodcastsFromItunes(searchQuery, counts.podcasts).catch(() => [])
+            ? this.fetchPodcastsFromItunes(queries.podcasts, counts.podcasts).catch(() => [])
             : Promise.resolve([]);
 
         const [youtubeVideos, msLearnResources, mitCourses, books, podcasts] = await Promise.allSettled([
             this.youtubeService.isConfigured()
-                ? this.youtubeService.searchVideos(searchQuery, counts.youtube).catch(() => [])
+                ? this.youtubeService.searchVideos(queries.youtube, counts.youtube).catch(() => [])
                 : Promise.resolve([]),
             msLearnPromise,
-            this.mitOcwService.searchCourses(searchQuery, counts.mit).catch(() => []),
-            this.openLibraryService.searchBooks(searchQuery, counts.books).catch(() => []),
+            this.mitOcwService.searchCourses(queries.courses, counts.mit).catch(() => []),
+            this.openLibraryService.searchBooks(queries.books, counts.books).catch(() => []),
             podcastsPromise
         ]);
+
+        // Build relevance tokens from module title for scoring
+        const relevanceTokens = moduleTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .split(/\s+/)
+            .filter(t => t.length >= 2);
 
         // Process YouTube videos
         if (youtubeVideos.status === "fulfilled" && youtubeVideos.value.length > 0) {
@@ -878,7 +929,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Process Microsoft Learn resources (modules, learning paths, courses → all as "course")
+        // Process Microsoft Learn resources
         if (msLearnResources.status === "fulfilled" && msLearnResources.value.length > 0) {
             for (const resource of msLearnResources.value) {
                 resources.push({
@@ -902,7 +953,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                     type: "course",
                     title: course.title,
                     url: course.url,
-                    description: course.description.slice(0, 200),
+                    description: (course.description || "").slice(0, 200),
                     difficulty: this.mapDifficulty(course.level),
                     completed: false
                 });
@@ -917,14 +968,14 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                     type: "book",
                     title: book.title,
                     url: book.url,
-                    description: book.description.slice(0, 200),
+                    description: (book.description || "").slice(0, 200),
                     difficulty: "intermediate",
                     completed: false
                 });
             }
         }
 
-        // Process podcasts from iTunes (when user has podcasts in learning style)
+        // Process podcasts from iTunes
         if (podcasts.status === "fulfilled" && podcasts.value.length > 0) {
             for (const podcast of podcasts.value) {
                 resources.push({
@@ -939,8 +990,8 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             }
         }
 
-        // Recommend by profile, then ensure mix: videos + courses + books + podcasts; at least 3, max 6
-        const scored = this.recommendByProfile(resources, learningStyles, timeAvailability);
+        // Score by relevance + profile, then ensure diversity
+        const scored = this.recommendByRelevanceAndProfile(resources, relevanceTokens, learningStyles, timeAvailability);
         return this.selectWithDiversity(scored, 6, hasPodcastsStyle);
     }
 
@@ -1056,7 +1107,43 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
     }
 
     /**
+     * Rank resources by topical relevance + user profile (learning style, time).
+     * Relevance is measured by how many module-title tokens appear in the resource title/description.
+     */
+    private recommendByRelevanceAndProfile(
+        resources: LearningResource[],
+        relevanceTokens: string[],
+        learningStyles: string[],
+        timeAvailability: string
+    ): LearningResource[] {
+        return resources
+            .map(r => {
+                // Relevance score: count token matches in resource title & description
+                const text = `${r.title} ${r.description || ''}`.toLowerCase();
+                let relevanceScore = 0;
+                for (const token of relevanceTokens) {
+                    if (text.includes(token)) relevanceScore += 1;
+                }
+                // Normalize relevance to 0-1 range
+                const normalizedRelevance = relevanceTokens.length > 0
+                    ? relevanceScore / relevanceTokens.length
+                    : 0.5;
+
+                const styleScore = this.getLearningStyleScore(r, learningStyles);
+                const timeScore = this.getTimeSuitabilityScore(r, timeAvailability);
+
+                // Combined score: relevance (50%) + style (30%) + time (20%)
+                const combinedScore = (normalizedRelevance * 0.5) + (styleScore * 0.3) + (timeScore * 0.2);
+
+                return { resource: r, combinedScore };
+            })
+            .sort((a, b) => b.combinedScore - a.combinedScore)
+            .map(x => x.resource);
+    }
+
+    /**
      * Rank resources by user profile: learning style first, then time suitability.
+     * (Legacy method kept for backward compatibility with prioritizeResources)
      */
     private recommendByProfile(
         resources: LearningResource[],
@@ -1078,17 +1165,51 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
     }
 
     /**
-     * Create a fallback learning resource when APIs return none or we need at least 3 per module.
+     * Create a fallback learning resource pointing to curated educational platforms
+     * rather than a generic Google search link.
      */
     private createFallbackResource(moduleTitle: string, category: string, suffix: string = ""): LearningResource {
-        const query = encodeURIComponent(`learn ${moduleTitle} ${category} tutorial`);
+        const query = encodeURIComponent(moduleTitle);
         const slug = moduleTitle.toLowerCase().replace(/\s+/g, "-").slice(0, 28) + suffix;
+
+        // Rotate through high-quality educational platforms for fallbacks
+        const platforms = [
+            {
+                type: "course" as const,
+                title: `${moduleTitle} — freeCodeCamp`,
+                url: `https://www.freecodecamp.org/news/search/?query=${query}`,
+                description: `Free tutorials and courses on "${moduleTitle}" from freeCodeCamp.`
+            },
+            {
+                type: "article" as const,
+                title: `${moduleTitle} — MDN Web Docs`,
+                url: `https://developer.mozilla.org/en-US/search?q=${query}`,
+                description: `Documentation and guides on "${moduleTitle}" from Mozilla Developer Network.`
+            },
+            {
+                type: "course" as const,
+                title: `${moduleTitle} — Coursera`,
+                url: `https://www.coursera.org/search?query=${query}`,
+                description: `University-level courses on "${moduleTitle}" from Coursera.`
+            },
+            {
+                type: "article" as const,
+                title: `${moduleTitle} — Dev.to`,
+                url: `https://dev.to/search?q=${query}`,
+                description: `Community tutorials and articles on "${moduleTitle}" from Dev.to.`
+            },
+        ];
+
+        // Pick platform based on suffix index to ensure variety across fallbacks
+        const suffixIndex = suffix ? parseInt(suffix.replace('-', ''), 10) - 1 : 0;
+        const platform = platforms[Math.abs(suffixIndex) % platforms.length];
+
         return {
             id: `fallback-${slug}`,
-            type: "article",
-            title: `Learn more: ${moduleTitle}`,
-            url: `https://www.google.com/search?q=${query}`,
-            description: `Search the web for tutorials and courses on "${moduleTitle}".`,
+            type: platform.type,
+            title: platform.title,
+            url: platform.url,
+            description: platform.description,
             difficulty: "intermediate",
             completed: false
         };

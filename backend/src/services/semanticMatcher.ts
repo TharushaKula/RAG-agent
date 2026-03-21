@@ -1,5 +1,9 @@
 import { EmbeddingService } from './embeddingService';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { ChatOllama } from "@langchain/ollama";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableSequence } from "@langchain/core/runnables";
 
 export interface Requirement {
     text: string;
@@ -43,36 +47,131 @@ export interface MatchResult {
     recommendations: string[];
 }
 
+// Type weights for overall score calculation:
+// Skills and experience matter more than generic "other" requirements
+const TYPE_WEIGHTS: Record<string, number> = {
+    skill: 1.3,
+    experience: 1.3,
+    qualification: 1.1,
+    other: 0.7,
+};
+
 export class SemanticMatcher {
     private embeddingService: EmbeddingService;
     private similarityThreshold: number;
+    private llm: ChatOllama | null;
 
-    constructor(embeddingService: EmbeddingService, similarityThreshold: number = 0.45) {
+    constructor(
+        embeddingService: EmbeddingService,
+        similarityThreshold: number = 0.45,
+        llm?: ChatOllama
+    ) {
         this.embeddingService = embeddingService;
-        // Lower threshold to focus on semantic meaning rather than exact text matching
-        // This allows the model to recognize that different wording can express the same meaning
         this.similarityThreshold = similarityThreshold;
+        this.llm = llm || null;
+    }
+
+    // ──────────────────────────────────────────────
+    //  1. REQUIREMENT EXTRACTION (LLM + regex fallback)
+    // ──────────────────────────────────────────────
+
+    /**
+     * Extract requirements from the JD.
+     * Tries LLM-based structured extraction first; falls back to regex + sentence parsing.
+     */
+    async extractRequirements(jdText: string): Promise<Requirement[]> {
+        // Try LLM extraction first (much more accurate)
+        if (this.llm) {
+            try {
+                const llmReqs = await this.extractRequirementsWithLLM(jdText);
+                if (llmReqs.length >= 3) {
+                    console.log(`📋 LLM extracted ${llmReqs.length} requirements`);
+                    return llmReqs.slice(0, 30);
+                }
+            } catch (err: any) {
+                console.warn(`⚠️ LLM requirement extraction failed, falling back to regex: ${err.message}`);
+            }
+        }
+
+        // Fallback: regex-based extraction
+        return this.extractRequirementsWithRegex(jdText);
     }
 
     /**
-     * Extract requirements from job description text
-     * Improved to handle various formats and extract meaningful requirements
+     * LLM-based structured requirement extraction.
+     * Asks the LLM to read the JD and output a JSON array of requirements with types.
      */
-    async extractRequirements(jdText: string): Promise<Requirement[]> {
+    private async extractRequirementsWithLLM(jdText: string): Promise<Requirement[]> {
+        const prompt = ChatPromptTemplate.fromMessages([
+            [
+                "system",
+                `You are a job description analyzer. Extract all specific requirements from the given job description.
+
+For each requirement, classify it as one of:
+- "skill": Technical or soft skill (e.g., "Proficient in Python", "Strong communication skills")
+- "experience": Work experience requirement (e.g., "3+ years in backend development")
+- "qualification": Education or certification (e.g., "Bachelor's degree in CS", "AWS certified")
+- "other": Any other requirement that doesn't fit the above
+
+IMPORTANT RULES:
+- Extract ONLY actual requirements (skills, experience, qualifications the candidate must have)
+- Do NOT extract company descriptions, benefits, perks, or general information
+- Each requirement should be a single, clear statement (one skill/requirement per item)
+- If a bullet point contains multiple requirements, split them into separate items
+- Aim for 8-25 requirements total
+- Respond with ONLY valid JSON — no markdown, no explanation
+
+Response format:
+[{"text": "requirement text", "type": "skill|experience|qualification|other"}, ...]`
+            ],
+            ["user", "{jdText}"]
+        ]);
+
+        const chain = RunnableSequence.from([prompt, this.llm!, new StringOutputParser()]);
+        const response = await chain.invoke({ jdText: jdText.slice(0, 6000) });
+
+        // Parse JSON from response (handle potential markdown wrapping)
+        const jsonStr = response.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(jsonStr);
+
+        if (!Array.isArray(parsed)) return [];
+
+        const seen = new Set<string>();
         const requirements: Requirement[] = [];
-        const seen = new Set<string>(); // Deduplicate
-        
-        // First, try to extract structured requirements (bullet points, numbered lists)
+
+        for (const item of parsed) {
+            if (!item.text || typeof item.text !== 'string') continue;
+            const text = item.text.trim();
+            if (text.length < 10) continue;
+            const normalized = text.toLowerCase();
+            if (seen.has(normalized)) continue;
+            seen.add(normalized);
+
+            const validTypes = ['skill', 'experience', 'qualification', 'other'];
+            const type = validTypes.includes(item.type) ? item.type : this.classifyRequirement(text);
+
+            requirements.push({ text, type: type as Requirement['type'] });
+        }
+
+        return requirements;
+    }
+
+    /**
+     * Regex + sentence-based requirement extraction (fallback).
+     */
+    private async extractRequirementsWithRegex(jdText: string): Promise<Requirement[]> {
+        const requirements: Requirement[] = [];
+        const seen = new Set<string>();
+
         const lines = jdText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-        
+
         for (const line of lines) {
-            // Skip headers and very short lines
             if (line.length < 15) continue;
-            
-            // Check for bullet points, numbered lists, dashes
-            const bulletPattern = /^[\d\-\•\*●○▪▫]\s+(.+)$/;
+
+            // Expanded bullet pattern: handles indented bullets, parenthesized numbers, letters
+            const bulletPattern = /^\s*(?:[\d]+[.)]\s*|[a-z][.)]\s*|\([a-z\d]+\)\s*|[-–—\•\*●○▪▫►▸✓✔☐]\s*)(.+)$/i;
             const match = line.match(bulletPattern);
-            
+
             if (match) {
                 const cleaned = match[1].trim();
                 if (cleaned.length > 15 && !seen.has(cleaned.toLowerCase())) {
@@ -84,27 +183,29 @@ export class SemanticMatcher {
                 }
             }
         }
-        
-        // If we didn't find enough structured requirements, use sentence-level extraction
+
+        // If not enough structured requirements, use sentence-level extraction
         if (requirements.length < 5) {
-            // Split by sentences, but keep meaningful chunks
             const sentences = jdText
                 .split(/[.!?]+/)
                 .map(s => s.trim())
-                .filter(s => s.length > 25 && s.length < 500); // Meaningful length
-            
+                .filter(s => s.length > 25 && s.length < 500);
+
             for (const sentence of sentences) {
                 const normalized = sentence.toLowerCase();
                 if (!seen.has(normalized) && requirements.length < 30) {
-                    seen.add(normalized);
-                    requirements.push({
-                        text: sentence,
-                        type: this.classifyRequirement(sentence),
-                    });
+                    // Skip likely non-requirement sentences (company descriptions, benefits)
+                    if (this.isLikelyRequirement(sentence)) {
+                        seen.add(normalized);
+                        requirements.push({
+                            text: sentence,
+                            type: this.classifyRequirement(sentence),
+                        });
+                    }
                 }
             }
         }
-        
+
         // If still not enough, use intelligent chunking
         if (requirements.length < 3) {
             const splitter = new RecursiveCharacterTextSplitter({
@@ -112,7 +213,7 @@ export class SemanticMatcher {
                 chunkOverlap: 100,
             });
             const chunks = await splitter.createDocuments([jdText]);
-            
+
             for (const chunk of chunks.slice(0, 20)) {
                 const text = chunk.pageContent.trim();
                 if (text.length > 50 && !seen.has(text.toLowerCase())) {
@@ -125,106 +226,163 @@ export class SemanticMatcher {
             }
         }
 
-        return requirements.slice(0, 30); // Limit to 30 requirements
+        return requirements.slice(0, 30);
     }
 
     /**
-     * Classify requirement type based on content
+     * Heuristic to filter out non-requirement sentences (company descriptions, benefits, etc.)
+     */
+    private isLikelyRequirement(text: string): boolean {
+        const lower = text.toLowerCase();
+        // Positive signals: looks like a requirement
+        const requirementSignals = /\b(must|should|require|experience|proficien|knowledge|skill|ability|familiar|degree|certification|years?|minimum|strong|excellent|understanding|competent|capable|responsible for|work with|develop|design|implement|manage|maintain)\b/;
+        // Negative signals: looks like company description or benefits
+        const nonRequirementSignals = /\b(we offer|our company|benefits include|salary|vacation|insurance|founded in|headquartered|employees worldwide|equal opportunity|we are a|join our)\b/;
+
+        if (nonRequirementSignals.test(lower)) return false;
+        if (requirementSignals.test(lower)) return true;
+
+        // Default: include if it's in a reasonable length range
+        return text.length > 30 && text.length < 300;
+    }
+
+    /**
+     * Classify requirement type based on content keywords.
      */
     private classifyRequirement(text: string): Requirement['type'] {
         const lower = text.toLowerCase();
-        
-        // Experience-related keywords
-        if (lower.match(/\b(years?|experience|worked|previous|prior|background|history)\b/)) {
+
+        if (lower.match(/\b(years?|experience|worked|previous|prior|background|history|track record|hands-on)\b/)) {
             return 'experience';
         }
-        
-        // Skill-related keywords
-        if (lower.match(/\b(skill|proficient|knowledge|familiar|expert|expertise|ability|capable|competent)\b/)) {
+        if (lower.match(/\b(skill|proficien|knowledge|familiar|expert|expertise|ability|capable|competent|fluent|strong understanding|hands-on experience with)\b/)) {
             return 'skill';
         }
-        
-        // Qualification-related keywords
-        if (lower.match(/\b(degree|education|qualification|certification|certified|diploma|bachelor|master|phd)\b/)) {
+        if (lower.match(/\b(degree|education|qualification|certification|certified|diploma|bachelor|master|phd|mba|accredit)\b/)) {
             return 'qualification';
         }
-        
+
         return 'other';
     }
 
+    // ──────────────────────────────────────────────
+    //  2. CV SECTION EXTRACTION (expanded headers + sub-chunking)
+    // ──────────────────────────────────────────────
+
     /**
-     * Extract sections from CV text
+     * Extract sections from CV text using expanded header patterns,
+     * then sub-chunk large sections into 150-300 char pieces for better embedding granularity.
      */
     async extractCVSections(cvText: string): Promise<CVSection[]> {
-        const sections: CVSection[] = [];
-        
-        // Common CV section headers
-        const sectionPatterns = [
-            { pattern: /(?:^|\n)\s*(?:skills?|technical skills?|core competencies?)\s*:?\s*/i, type: 'skills' as const },
-            { pattern: /(?:^|\n)\s*(?:experience|work experience|employment|professional experience)\s*:?\s*/i, type: 'experience' as const },
-            { pattern: /(?:^|\n)\s*(?:education|academic|qualifications?)\s*:?\s*/i, type: 'education' as const },
-            { pattern: /(?:^|\n)\s*(?:summary|profile|objective|about)\s*:?\s*/i, type: 'summary' as const },
+        // Expanded section header patterns to catch many CV formats
+        const sectionPatterns: Array<{ pattern: RegExp; type: CVSection['type'] }> = [
+            // Skills variations
+            { pattern: /(?:^|\n)\s*(?:skills?|technical skills?|core competencies?|key skills?|areas of expertise|technical proficiencies|competencies|technologies|tech stack)\s*[:\-—]?\s*/i, type: 'skills' },
+            // Experience variations
+            { pattern: /(?:^|\n)\s*(?:experience|work experience|employment|professional experience|career history|work history|relevant experience|professional background|positions? held)\s*[:\-—]?\s*/i, type: 'experience' },
+            // Education variations
+            { pattern: /(?:^|\n)\s*(?:education|academic|qualifications?|academic background|educational background|degrees?|certifications?|training|professional development|licenses? (?:&|and) certifications?)\s*[:\-—]?\s*/i, type: 'education' },
+            // Summary / profile variations
+            { pattern: /(?:^|\n)\s*(?:summary|profile|objective|about|personal statement|professional summary|career objective|career summary|executive summary|overview)\s*[:\-—]?\s*/i, type: 'summary' },
         ];
 
-        // Split by sections
-        let remainingText = cvText;
-        const foundSections: { type: CVSection['type']; text: string }[] = [];
+        // Split CV by identified sections
+        const foundSections: Array<{ type: CVSection['type']; text: string }> = [];
+
+        // Find all section header positions
+        const headerPositions: Array<{ type: CVSection['type']; startIndex: number; headerEnd: number }> = [];
 
         for (const { pattern, type } of sectionPatterns) {
-            const match = remainingText.match(pattern);
-            if (match) {
-                const startIndex = match.index! + match[0].length;
-                // Find next section or end of text
-                let endIndex = remainingText.length;
-                for (const nextPattern of sectionPatterns) {
-                    const nextMatch = remainingText.substring(startIndex).match(nextPattern.pattern);
-                    if (nextMatch) {
-                        endIndex = Math.min(endIndex, startIndex + nextMatch.index!);
-                    }
-                }
-                
-                const sectionText = remainingText.substring(startIndex, endIndex).trim();
-                if (sectionText.length > 20) {
-                    foundSections.push({ type, text: sectionText });
-                }
+            const match = cvText.match(pattern);
+            if (match && match.index !== undefined) {
+                headerPositions.push({
+                    type,
+                    startIndex: match.index,
+                    headerEnd: match.index + match[0].length,
+                });
+            }
+        }
+
+        // Sort by position in document
+        headerPositions.sort((a, b) => a.startIndex - b.startIndex);
+
+        // Extract text between headers
+        for (let i = 0; i < headerPositions.length; i++) {
+            const current = headerPositions[i];
+            const nextStart = i + 1 < headerPositions.length
+                ? headerPositions[i + 1].startIndex
+                : cvText.length;
+
+            const sectionText = cvText.substring(current.headerEnd, nextStart).trim();
+            if (sectionText.length > 20) {
+                foundSections.push({ type: current.type, text: sectionText });
+            }
+        }
+
+        // If any text precedes the first header, capture it as 'summary' or 'other'
+        if (headerPositions.length > 0 && headerPositions[0].startIndex > 50) {
+            const preHeaderText = cvText.substring(0, headerPositions[0].startIndex).trim();
+            if (preHeaderText.length > 30) {
+                foundSections.unshift({ type: 'summary', text: preHeaderText });
             }
         }
 
         // If no structured sections found, chunk the entire CV
         if (foundSections.length === 0) {
             const splitter = new RecursiveCharacterTextSplitter({
-                chunkSize: 300,
+                chunkSize: 250,
                 chunkOverlap: 50,
             });
             const chunks = await splitter.createDocuments([cvText]);
-            for (const chunk of chunks) {
-                sections.push({
-                    text: chunk.pageContent,
-                    type: 'other',
-                });
-            }
-        } else {
-            for (const section of foundSections) {
-                sections.push({
-                    text: section.text,
-                    type: section.type,
-                });
+            return chunks.map(chunk => ({
+                text: chunk.pageContent,
+                type: 'other' as const,
+            }));
+        }
+
+        // Sub-chunk large sections so each chunk is 150-300 chars
+        // This ensures embeddings are focused (not diluted by multi-topic paragraphs)
+        const subChunked: CVSection[] = [];
+        const splitter = new RecursiveCharacterTextSplitter({
+            chunkSize: 250,
+            chunkOverlap: 40,
+        });
+
+        for (const section of foundSections) {
+            if (section.text.length <= 350) {
+                // Small enough — keep as-is
+                subChunked.push({ text: section.text, type: section.type });
+            } else {
+                // Sub-chunk and preserve the section type on each chunk
+                const chunks = await splitter.createDocuments([section.text]);
+                for (const chunk of chunks) {
+                    const text = chunk.pageContent.trim();
+                    if (text.length > 20) {
+                        subChunked.push({ text, type: section.type });
+                    }
+                }
             }
         }
 
-        return sections;
+        return subChunked;
     }
 
+    // ──────────────────────────────────────────────
+    //  3. CORE MATCHING
+    // ──────────────────────────────────────────────
+
     /**
-     * Perform semantic matching between JD requirements and CV sections
+     * Perform semantic matching between JD requirements and CV sections.
      */
-    async match(cvText: string, jdText: string, userId: string, cvSource: string, jdSource: string): Promise<MatchResult> {
+    async match(
+        cvText: string,
+        jdText: string,
+        userId: string,
+        cvSource: string,
+        jdSource: string
+    ): Promise<MatchResult> {
         console.log('🔍 Starting semantic matching...');
-        
-        // Note: We prioritize semantic meaning over text similarity
-        // Even if texts are similar, we use semantic embeddings to understand meaning
-        // This allows the model to recognize that different wording can express the same meaning
-        
+
         // Extract requirements and CV sections
         const [requirements, cvSections] = await Promise.all([
             this.extractRequirements(jdText),
@@ -232,36 +390,26 @@ export class SemanticMatcher {
         ]);
 
         console.log(`📋 Extracted ${requirements.length} requirements from JD`);
-        console.log(`📄 Extracted ${cvSections.length} sections from CV`);
+        console.log(`📄 Extracted ${cvSections.length} sub-chunks from CV`);
 
         if (requirements.length === 0) {
             throw new Error('No requirements found in job description');
         }
-
         if (cvSections.length === 0) {
             throw new Error('No sections found in CV');
         }
 
-        // Generate embeddings for requirements
-        console.log('🔄 Generating embeddings for requirements...');
-        const requirementTexts = requirements.map(r => r.text);
-        const requirementEmbeddings = await this.embeddingService.embedBatch(requirementTexts);
-        console.log(`✅ Generated ${requirementEmbeddings.length} requirement embeddings`);
+        // Generate embeddings in batch
+        console.log('🔄 Generating embeddings...');
+        const [requirementEmbeddings, cvEmbeddings] = await Promise.all([
+            this.embeddingService.embedBatch(requirements.map(r => r.text)),
+            this.embeddingService.embedBatch(cvSections.map(s => s.text)),
+        ]);
 
-        // Generate embeddings for CV sections
-        console.log('🔄 Generating embeddings for CV sections...');
-        const cvTexts = cvSections.map(s => s.text);
-        const cvEmbeddings = await this.embeddingService.embedBatch(cvTexts);
-        console.log(`✅ Generated ${cvEmbeddings.length} CV section embeddings`);
-        
-        // Validate embeddings
+        console.log(`✅ Embeddings ready — Requirements: ${requirementEmbeddings.length}, CV chunks: ${cvEmbeddings.length}`);
+
         if (requirementEmbeddings.length === 0 || cvEmbeddings.length === 0) {
             throw new Error('Failed to generate embeddings');
-        }
-        
-        // Log sample embedding dimensions for debugging
-        if (requirementEmbeddings[0] && cvEmbeddings[0]) {
-            console.log(`📊 Embedding dimensions - Requirements: ${requirementEmbeddings[0].length}, CV: ${cvEmbeddings[0].length}`);
         }
 
         // Calculate similarities
@@ -275,65 +423,53 @@ export class SemanticMatcher {
             let bestSimilarity = 0;
             let bestSection: { text: string; type: string } | null = null;
 
-            // Find best matches in CV sections using semantic similarity
-            // Focus on meaning rather than exact text matching
             for (let j = 0; j < cvSections.length; j++) {
                 const cvSection = cvSections[j];
                 const cvEmbedding = cvEmbeddings[j];
-                
-                // Use semantic embedding similarity as primary method
-                // This analyzes the meaning, not just word/sentence structure
+
                 let similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
-                
-                // Only use text matching as a bonus for exact matches (not primary method)
-                // This ensures we prioritize semantic meaning over literal text
-                const reqNormalized = requirement.text.trim().toLowerCase();
-                const cvNormalized = cvSection.text.trim().toLowerCase();
-                
-                // Small bonus for exact matches, but don't override semantic similarity
-                if (reqNormalized === cvNormalized) {
-                    // Exact match gets a small boost, but trust embeddings for meaning
+
+                // Small bonus for exact text overlap (handles edge cases embeddings might miss)
+                const reqNorm = requirement.text.trim().toLowerCase();
+                const cvNorm = cvSection.text.trim().toLowerCase();
+
+                if (reqNorm === cvNorm) {
                     similarity = Math.min(1.0, similarity + 0.05);
-                } else if (similarity < 0.3 && (reqNormalized.includes(cvNormalized) || cvNormalized.includes(reqNormalized))) {
-                    // Only boost if semantic similarity is very low but text overlaps
-                    // This handles cases where embeddings might miss obvious connections
-                    const longer = reqNormalized.length > cvNormalized.length ? reqNormalized : cvNormalized;
-                    const shorter = reqNormalized.length > cvNormalized.length ? cvNormalized : reqNormalized;
-                    const textOverlap = shorter.length / longer.length;
-                    similarity = Math.max(similarity, textOverlap * 0.4); // Cap at 40% for text-only matches
+                } else if (similarity < 0.3) {
+                    // Check for substring containment as a safety net
+                    if (reqNorm.includes(cvNorm) || cvNorm.includes(reqNorm)) {
+                        const longer = reqNorm.length > cvNorm.length ? reqNorm : cvNorm;
+                        const shorter = reqNorm.length > cvNorm.length ? cvNorm : reqNorm;
+                        const overlap = shorter.length / longer.length;
+                        similarity = Math.max(similarity, overlap * 0.4);
+                    }
                 }
-                
-                // Track the best similarity regardless of threshold
+
                 if (similarity > bestSimilarity) {
                     bestSimilarity = similarity;
                     bestSection = { text: cvSection.text, type: cvSection.type };
                 }
-                
-                // Only add to matchedSections if above threshold (for display)
+
                 if (similarity >= this.similarityThreshold) {
                     matchedSections.push({
-                        cvSection: cvSection.text.substring(0, 200), // Truncate for display
+                        cvSection: cvSection.text.substring(0, 200),
                         similarity,
                         sectionType: cvSection.type,
                     });
                 }
             }
 
-            // Sort by similarity (highest first)
             matchedSections.sort((a, b) => b.similarity - a.similarity);
 
-            // Determine match status based on best similarity
+            // Determine match status
             let status: RequirementMatch['status'] = 'not_matched';
-            const matchScore = bestSimilarity; // Always use the best similarity, even if below threshold
-
-            if (matchScore >= 0.75) {
+            if (bestSimilarity >= 0.75) {
                 status = 'matched';
-            } else if (matchScore >= this.similarityThreshold) {
+            } else if (bestSimilarity >= this.similarityThreshold) {
                 status = 'partially_matched';
             }
 
-            // If we have a best match but it wasn't added to matchedSections (below threshold),
-            // add it so users can see why the score is what it is
+            // Always show at least the best match so users understand the score
             if (bestSection && matchedSections.length === 0 && bestSimilarity > 0) {
                 matchedSections.push({
                     cvSection: bestSection.text.substring(0, 200),
@@ -345,34 +481,29 @@ export class SemanticMatcher {
             requirementMatches.push({
                 requirement: requirement.text,
                 requirementType: requirement.type,
-                matchedSections: matchedSections.slice(0, 3), // Top 3 matches
-                matchScore,
+                matchedSections: matchedSections.slice(0, 3),
+                matchScore: bestSimilarity,
                 status,
             });
         }
 
-        // Calculate summary statistics
+        // ── Overall score: weighted average of ALL requirements ──
         const matchedCount = requirementMatches.filter(m => m.status === 'matched').length;
         const partiallyMatchedCount = requirementMatches.filter(m => m.status === 'partially_matched').length;
         const unmatchedCount = requirementMatches.filter(m => m.status === 'not_matched').length;
-        
-        // Use weighted average focusing on semantic similarity scores
-        // This prioritizes meaning-based matches over text-based matches
-        const scores = requirementMatches.map(m => m.matchScore).sort((a, b) => b - a);
-        
-        // Use top 75% of scores to focus on best semantic matches
-        // This gives more weight to requirements that have strong semantic alignment
-        const topScores = scores.slice(0, Math.ceil(scores.length * 0.75));
-        const averageScore = topScores.length > 0 
-            ? topScores.reduce((sum, s) => sum + s, 0) / topScores.length
-            : scores.reduce((sum, s) => sum + s, 0) / (scores.length || 1);
-        
-        // The overall score is based purely on semantic similarity
-        // No text-based bonuses - we trust the embedding model's understanding of meaning
+
+        let weightedSum = 0;
+        let weightTotal = 0;
+        for (const m of requirementMatches) {
+            const w = TYPE_WEIGHTS[m.requirementType] ?? 1.0;
+            weightedSum += m.matchScore * w;
+            weightTotal += w;
+        }
+        const averageScore = weightTotal > 0 ? weightedSum / weightTotal : 0;
         const overallScore = Math.min(1.0, averageScore);
 
-        // Generate recommendations
-        const recommendations = this.generateRecommendations(requirementMatches, cvText);
+        // Generate recommendations (LLM if available, else template)
+        const recommendations = await this.generateRecommendations(requirementMatches, cvText, jdText);
 
         const matchResult: MatchResult = {
             matchId: `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -393,242 +524,154 @@ export class SemanticMatcher {
         };
 
         console.log(`✅ Matching complete. Overall score: ${(overallScore * 100).toFixed(1)}%`);
-        
         return matchResult;
     }
 
-    /**
-     * Generate recommendations based on match results
-     */
-    private generateRecommendations(matches: RequirementMatch[], cvText: string): string[] {
-        const recommendations: string[] = [];
-        
-        // Find unmatched high-importance requirements
-        const unmatched = matches.filter(m => m.status === 'not_matched');
-        const importantUnmatched = unmatched
-            .filter(m => m.requirementType === 'skill' || m.requirementType === 'experience')
-            .slice(0, 3);
-
-        for (const match of importantUnmatched) {
-            recommendations.push(`Consider adding experience or skills related to: "${match.requirement.substring(0, 100)}"`);
-        }
-
-        // Find partially matched requirements
-        const partiallyMatched = matches.filter(m => m.status === 'partially_matched');
-        if (partiallyMatched.length > 0) {
-            recommendations.push(`You have some relevant experience for ${partiallyMatched.length} requirements. Consider highlighting these more prominently in your resume.`);
-        }
-
-        // Overall score recommendations
-        const overallScore = matches.reduce((sum, m) => sum + m.matchScore, 0) / matches.length;
-        if (overallScore < 0.5) {
-            recommendations.push('Your resume shows limited alignment with the job requirements. Consider gaining more relevant experience or skills.');
-        } else if (overallScore < 0.7) {
-            recommendations.push('Your resume shows moderate alignment. Focus on highlighting relevant experience and skills more clearly.');
-        } else {
-            recommendations.push('Great! Your resume shows strong alignment with the job requirements.');
-        }
-
-        return recommendations.slice(0, 5); // Limit to 5 recommendations
-    }
+    // ──────────────────────────────────────────────
+    //  4. RECOMMENDATIONS (LLM + template fallback)
+    // ──────────────────────────────────────────────
 
     /**
-     * Calculate text similarity using Jaccard similarity and character-level comparison
+     * Generate actionable recommendations using LLM if available, else template-based.
      */
-    private calculateTextSimilarity(text1: string, text2: string): number {
-        // Exact match
-        if (text1 === text2) return 1.0;
-        
-        // Jaccard similarity on words
-        const words1 = new Set(text1.split(/\s+/));
-        const words2 = new Set(text2.split(/\s+/));
-        const intersection = new Set([...words1].filter(x => words2.has(x)));
-        const union = new Set([...words1, ...words2]);
-        const jaccard = intersection.size / union.size;
-        
-        // Character-level similarity (Levenshtein-like)
-        const longer = text1.length > text2.length ? text1 : text2;
-        const shorter = text1.length > text2.length ? text2 : text1;
-        const editDistance = this.levenshteinDistance(text1, text2);
-        const charSimilarity = 1 - (editDistance / longer.length);
-        
-        // Weighted average
-        return (jaccard * 0.6 + charSimilarity * 0.4);
-    }
-
-    /**
-     * Calculate Levenshtein distance between two strings
-     */
-    private levenshteinDistance(str1: string, str2: string): number {
-        const matrix: number[][] = [];
-        const len1 = str1.length;
-        const len2 = str2.length;
-
-        for (let i = 0; i <= len1; i++) {
-            matrix[i] = [i];
-        }
-
-        for (let j = 0; j <= len2; j++) {
-            matrix[0][j] = j;
-        }
-
-        for (let i = 1; i <= len1; i++) {
-            for (let j = 1; j <= len2; j++) {
-                if (str1[i - 1] === str2[j - 1]) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(
-                        matrix[i - 1][j] + 1,
-                        matrix[i][j - 1] + 1,
-                        matrix[i - 1][j - 1] + 1
-                    );
-                }
+    private async generateRecommendations(
+        matches: RequirementMatch[],
+        cvText: string,
+        jdText: string
+    ): Promise<string[]> {
+        // Try LLM-powered recommendations
+        if (this.llm) {
+            try {
+                return await this.generateRecommendationsWithLLM(matches, jdText);
+            } catch (err: any) {
+                console.warn(`⚠️ LLM recommendation generation failed, falling back to template: ${err.message}`);
             }
         }
 
-        return matrix[len1][len2];
+        return this.generateTemplateRecommendations(matches);
     }
 
     /**
-     * Optimized matching for identical or near-identical texts
+     * LLM-powered recommendation generation.
+     * Passes the match analysis to the LLM for specific, actionable advice.
      */
-    private async matchIdenticalTexts(
-        cvText: string,
-        jdText: string,
-        userId: string,
-        cvSource: string,
-        jdSource: string,
-        textSimilarity: number
-    ): Promise<MatchResult> {
-        // Use sentence-level matching for better accuracy
-        const sentences = jdText.split(/[.!?]+/).filter(s => s.trim().length > 20);
-        const requirements: Requirement[] = sentences.slice(0, 30).map(sentence => ({
-            text: sentence.trim(),
-            type: 'other' as const
-        }));
+    private async generateRecommendationsWithLLM(
+        matches: RequirementMatch[],
+        jdText: string
+    ): Promise<string[]> {
+        const matched = matches.filter(m => m.status === 'matched');
+        const partial = matches.filter(m => m.status === 'partially_matched');
+        const unmatched = matches.filter(m => m.status === 'not_matched');
 
-        // Use same sentence-level chunks for CV
-        const cvSentences = cvText.split(/[.!?]+/).filter(s => s.trim().length > 20);
-        const cvSections: CVSection[] = cvSentences.slice(0, 30).map(sentence => ({
-            text: sentence.trim(),
-            type: 'other' as const
-        }));
+        const overallScore = matches.reduce((s, m) => s + m.matchScore, 0) / matches.length;
 
-        console.log(`📋 Using sentence-level matching: ${requirements.length} requirements, ${cvSections.length} CV sections`);
+        // Build a concise summary for the LLM
+        const unmatchedList = unmatched
+            .map(m => `- [${m.requirementType}] "${m.requirement}" (score: ${(m.matchScore * 100).toFixed(0)}%)`)
+            .slice(0, 8)
+            .join('\n');
+        const partialList = partial
+            .map(m => `- [${m.requirementType}] "${m.requirement}" (score: ${(m.matchScore * 100).toFixed(0)}%)`)
+            .slice(0, 5)
+            .join('\n');
 
-        // Generate embeddings
-        const requirementTexts = requirements.map(r => r.text);
-        const cvTexts = cvSections.map(s => s.text);
-        
-        const [requirementEmbeddings, cvEmbeddings] = await Promise.all([
-            this.embeddingService.embedBatch(requirementTexts),
-            this.embeddingService.embedBatch(cvTexts)
+        const prompt = ChatPromptTemplate.fromMessages([
+            [
+                "system",
+                `You are a career coach analyzing how well a candidate's CV matches a job description.
+
+Given the match analysis below, provide 4-6 specific, actionable recommendations to improve the candidate's chances.
+
+RULES:
+- Be specific: reference actual skills, technologies, or experience areas from the unmatched/partial requirements
+- Be actionable: tell the candidate exactly what to do (add to CV, learn, highlight, reword, etc.)
+- Prioritize the most impactful gaps (skills and experience over "other")
+- If overall score is high (>70%), focus on fine-tuning rather than major gaps
+- Keep each recommendation to 1-2 sentences
+- Respond with ONLY a JSON array of strings — no markdown, no explanation
+
+Example response format:
+["Add Python and data analysis experience to your skills section — the role specifically requires proficiency in Python.", "Your CV mentions team collaboration but doesn't highlight leadership. Reword your experience to emphasize project leadership and mentoring."]`
+            ],
+            [
+                "user",
+                `Overall match score: ${(overallScore * 100).toFixed(0)}%
+Matched: ${matched.length} | Partially matched: ${partial.length} | Not matched: ${unmatched.length}
+
+NOT MATCHED requirements:
+${unmatchedList || '(none)'}
+
+PARTIALLY MATCHED requirements:
+${partialList || '(none)'}
+
+Job Description (first 2000 chars):
+${jdText.slice(0, 2000)}`
+            ]
         ]);
 
-        // Calculate similarities with exact match bonus
-        const requirementMatches: RequirementMatch[] = [];
+        const chain = RunnableSequence.from([prompt, this.llm!, new StringOutputParser()]);
+        const response = await chain.invoke({});
 
-        for (let i = 0; i < requirements.length; i++) {
-            const requirement = requirements[i];
-            const reqEmbedding = requirementEmbeddings[i];
-            const matchedSections: MatchedSection[] = [];
-            let bestSimilarity = 0;
-            let bestSection: { text: string; type: string } | null = null;
+        const jsonStr = response.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(jsonStr);
 
-            for (let j = 0; j < cvSections.length; j++) {
-                const cvSection = cvSections[j];
-                const cvEmbedding = cvEmbeddings[j];
-                
-                // Primary method: Use semantic embedding similarity (analyzes meaning)
-                let similarity = EmbeddingService.cosineSimilarity(reqEmbedding, cvEmbedding);
-                
-                // Text matching only as a small bonus for exact matches
-                const reqNormalized = requirement.text.trim().toLowerCase();
-                const cvNormalized = cvSection.text.trim().toLowerCase();
-                
-                if (reqNormalized === cvNormalized) {
-                    // Exact match gets small boost, but trust embeddings for meaning
-                    similarity = Math.min(1.0, similarity + 0.05);
-                } else if (similarity < 0.3 && (reqNormalized.includes(cvNormalized) || cvNormalized.includes(reqNormalized))) {
-                    // Only boost if semantic similarity is very low but text overlaps
-                    similarity = Math.max(similarity, 0.4);
-                }
-                
-                if (similarity > bestSimilarity) {
-                    bestSimilarity = similarity;
-                    bestSection = { text: cvSection.text, type: cvSection.type };
-                }
-                
-                if (similarity >= this.similarityThreshold) {
-                    matchedSections.push({
-                        cvSection: cvSection.text.substring(0, 200),
-                        similarity,
-                        sectionType: cvSection.type,
-                    });
-                }
-            }
-
-            matchedSections.sort((a, b) => b.similarity - a.similarity);
-
-            let status: RequirementMatch['status'] = 'not_matched';
-            const matchScore = bestSimilarity;
-
-            if (matchScore >= 0.75) {
-                status = 'matched';
-            } else if (matchScore >= this.similarityThreshold) {
-                status = 'partially_matched';
-            }
-
-            if (bestSection && matchedSections.length === 0 && bestSimilarity > 0) {
-                matchedSections.push({
-                    cvSection: bestSection.text.substring(0, 200),
-                    similarity: bestSimilarity,
-                    sectionType: bestSection.type,
-                });
-            }
-
-            requirementMatches.push({
-                requirement: requirement.text,
-                requirementType: requirement.type,
-                matchedSections: matchedSections.slice(0, 3),
-                matchScore,
-                status,
-            });
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.filter((r: any) => typeof r === 'string' && r.length > 10).slice(0, 6);
         }
 
-        // Calculate weighted average (give more weight to higher scores)
-        const scores = requirementMatches.map(m => m.matchScore).sort((a, b) => b - a);
-        const topScores = scores.slice(0, Math.ceil(scores.length * 0.7)); // Top 70%
-        const averageScore = topScores.length > 0 
-            ? topScores.reduce((sum, s) => sum + s, 0) / topScores.length
-            : scores.reduce((sum, s) => sum + s, 0) / scores.length;
-        
-        // Boost score if text similarity is very high
-        const overallScore = Math.min(1.0, averageScore * 0.9 + textSimilarity * 0.1);
+        // Fallback if LLM returns unexpected format
+        return this.generateTemplateRecommendations(matches);
+    }
 
-        const matchedCount = requirementMatches.filter(m => m.status === 'matched').length;
-        const partiallyMatchedCount = requirementMatches.filter(m => m.status === 'partially_matched').length;
-        const unmatchedCount = requirementMatches.filter(m => m.status === 'not_matched').length;
+    /**
+     * Template-based recommendations (fallback when LLM is unavailable).
+     */
+    private generateTemplateRecommendations(matches: RequirementMatch[]): string[] {
+        const recommendations: string[] = [];
 
-        const matchResult: MatchResult = {
-            matchId: `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            userId,
-            cvSource,
-            jdSource,
-            overallScore,
-            timestamp: new Date().toISOString(),
-            requirements: requirementMatches,
-            summary: {
-                totalRequirements: requirements.length,
-                matchedRequirements: matchedCount,
-                partiallyMatchedRequirements: partiallyMatchedCount,
-                unmatchedRequirements: unmatchedCount,
-                averageScore: overallScore,
-            },
-            recommendations: this.generateRecommendations(requirementMatches, cvText),
-        };
+        // Unmatched skills and experience — most actionable
+        const unmatched = matches.filter(m => m.status === 'not_matched');
+        const unmatchedSkills = unmatched.filter(m => m.requirementType === 'skill').slice(0, 2);
+        const unmatchedExp = unmatched.filter(m => m.requirementType === 'experience').slice(0, 2);
+        const unmatchedQual = unmatched.filter(m => m.requirementType === 'qualification').slice(0, 1);
 
-        console.log(`✅ Optimized matching complete. Overall score: ${(overallScore * 100).toFixed(1)}%`);
-        return matchResult;
+        for (const m of unmatchedSkills) {
+            recommendations.push(
+                `Your CV is missing a key skill the role requires: "${m.requirement.substring(0, 120)}". Add relevant projects, certifications, or coursework that demonstrate this skill.`
+            );
+        }
+        for (const m of unmatchedExp) {
+            recommendations.push(
+                `The role requires experience that isn't reflected in your CV: "${m.requirement.substring(0, 120)}". Consider rewording existing experience to highlight related work, or pursue relevant projects.`
+            );
+        }
+        for (const m of unmatchedQual) {
+            recommendations.push(
+                `A required qualification is missing: "${m.requirement.substring(0, 120)}". If you have equivalent credentials, make sure they're clearly stated in your Education section.`
+            );
+        }
+
+        // Partially matched — can be improved by rewording
+        const partial = matches.filter(m => m.status === 'partially_matched');
+        if (partial.length > 0) {
+            const topPartial = partial.sort((a, b) => a.matchScore - b.matchScore).slice(0, 2);
+            for (const m of topPartial) {
+                recommendations.push(
+                    `Your CV partially addresses "${m.requirement.substring(0, 80)}" (${(m.matchScore * 100).toFixed(0)}% match). Use keywords and phrasing from the job description to strengthen this alignment.`
+                );
+            }
+        }
+
+        // Overall guidance
+        const overallScore = matches.reduce((sum, m) => sum + m.matchScore, 0) / (matches.length || 1);
+        if (overallScore < 0.5) {
+            recommendations.push('Overall alignment is limited. Focus on the top 3-4 unmatched requirements above — addressing those will make the biggest difference.');
+        } else if (overallScore < 0.7) {
+            recommendations.push('You have moderate alignment with this role. Tailor your CV by mirroring the job description\'s language for your existing skills and experience.');
+        } else {
+            recommendations.push('Strong alignment! Fine-tune by ensuring your most relevant achievements are prominently placed and quantified where possible.');
+        }
+
+        return recommendations.slice(0, 6);
     }
 }

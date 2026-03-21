@@ -20,6 +20,9 @@ interface MicrosoftLearnCatalogResponse {
     certifications?: any[];
 }
 
+// Log MS Learn errors once to avoid spam
+let msLearnErrorLogged = false;
+
 export class MicrosoftLearnService {
     private client: AxiosInstance;
     private baseUrl = 'https://learn.microsoft.com/api/catalog';
@@ -27,14 +30,13 @@ export class MicrosoftLearnService {
     constructor() {
         this.client = axios.create({
             baseURL: this.baseUrl,
-            timeout: 15000,
+            timeout: 20000,
         });
     }
 
     /**
      * Search for learning resources using Microsoft Learn Catalog API.
-     * Uses type=modules,learningPaths,courses to get courses and modules (smaller response than full catalog).
-     * Filters client-side by query on title/summary.
+     * Downloads catalog filtered by type, then performs relevance-ranked client-side search.
      */
     async searchResources(
         query: string,
@@ -46,7 +48,7 @@ export class MicrosoftLearnService {
                 locale: 'en-us',
             };
             if (typeFilter === 'all') {
-                params['type'] = 'modules,learningPaths,courses';
+                params['type'] = 'modules,learningPaths';
             } else {
                 params['type'] = typeFilter;
             }
@@ -57,28 +59,26 @@ export class MicrosoftLearnService {
             }
             return this.formatResources(response.data, query, maxResults);
         } catch (error: any) {
-            console.warn('Microsoft Learn API:', error.response?.status || error.message);
+            if (!msLearnErrorLogged) {
+                msLearnErrorLogged = true;
+                console.warn('Microsoft Learn API:', error.response?.status || error.message);
+            }
             return [];
         }
     }
 
     /**
      * Search for courses and modules by topic (for roadmap and learning materials).
-     * Uses topic mapping like the learning materials page for better relevance.
      */
     async searchCoursesByTopic(topic: string, maxResults: number = 8): Promise<MicrosoftLearnResource[]> {
         const topicQueries = this.getTopicQueries(topic);
-        const allResources: MicrosoftLearnResource[] = [];
-        for (const q of topicQueries.slice(0, 3)) {
-            try {
-                const resources = await this.searchResources(q, Math.ceil(maxResults / 2), 'all');
-                allResources.push(...resources);
-            } catch {
-                // continue
-            }
+        // Use the first (most specific) query for best results
+        const primaryQuery = topicQueries[0] || topic;
+        try {
+            return await this.searchResources(primaryQuery, maxResults, 'all');
+        } catch {
+            return [];
         }
-        const unique = Array.from(new Map(allResources.map(r => [r.id, r])).values());
-        return unique.slice(0, maxResults);
     }
 
     private getTopicQueries(topic: string): string[] {
@@ -106,7 +106,6 @@ export class MicrosoftLearnService {
         topic: string,
         maxResults: number = 10
     ): Promise<MicrosoftLearnResource[]> {
-        // Map common topics to Microsoft Learn relevant queries
         const topicQueries: Record<string, string[]> = {
             'javascript': ['javascript', 'web development', 'node.js'],
             'react': ['react', 'frontend', 'web development'],
@@ -123,7 +122,6 @@ export class MicrosoftLearnService {
         const queries = topicQueries[topic.toLowerCase()] || [topic];
         const allResources: MicrosoftLearnResource[] = [];
 
-        // Search with multiple queries and combine results
         for (const query of queries.slice(0, 2)) {
             try {
                 const resources = await this.searchResources(query, Math.ceil(maxResults / queries.length));
@@ -133,7 +131,6 @@ export class MicrosoftLearnService {
             }
         }
 
-        // Remove duplicates and limit results
         const uniqueResources = Array.from(
             new Map(allResources.map(r => [r.id, r])).values()
         ).slice(0, maxResults);
@@ -142,67 +139,85 @@ export class MicrosoftLearnService {
     }
 
     /**
-     * Format Microsoft Learn API response to our resource format
+     * Format Microsoft Learn API response with relevance-ranked scoring.
+     * Tokenizes the query and scores each resource by how many query tokens appear
+     * in the title (high weight) and summary (lower weight).
      */
     private formatResources(
         data: MicrosoftLearnCatalogResponse | any,
         query: string,
         maxResults: number
     ): MicrosoftLearnResource[] {
-        const resources: MicrosoftLearnResource[] = [];
+        const allItems: Array<{ item: any; type: string }> = [];
 
-        // Extract resources from different content types
         const contentTypes = [
             { key: 'modules', items: data.modules },
             { key: 'learningPaths', items: data.learningPaths },
             { key: 'courses', items: data.courses },
-            { key: 'certifications', items: data.certifications },
         ];
 
         for (const contentType of contentTypes) {
             if (contentType.items && Array.isArray(contentType.items)) {
                 for (const item of contentType.items) {
-                    // Filter by query if provided (case-insensitive search in title/description)
-                    if (query) {
-                        const searchText = `${item.title || ''} ${item.summary || item.description || ''}`.toLowerCase();
-                        if (!searchText.includes(query.toLowerCase())) {
-                            continue;
-                        }
-                    }
-
-                    const durationMinutes = item.duration_in_minutes ?? (item.duration_in_hours ? item.duration_in_hours * 60 : undefined);
-                    const durationStr = durationMinutes
-                        ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`
-                        : (item.duration_in_hours ? `${item.duration_in_hours}h` : undefined);
-                    const resource: MicrosoftLearnResource = {
-                        id: item.uid || item.id || `mslearn-${Math.random().toString(36).substr(2, 9)}`,
-                        title: item.title || 'Untitled Resource',
-                        description: item.summary || item.description || '',
-                        url: item.url || `https://learn.microsoft.com/${item.uid || ''}`,
-                        thumbnail: item.icon_url || item.image_url,
-                        duration: durationStr,
-                        level: item.level || item.difficulty,
-                        type: contentType.key.slice(0, -1),
-                        role: item.roles || (item.role ? [item.role] : undefined),
-                        products: item.products || (item.product ? [item.product] : undefined),
-                    };
-
-                    resources.push(resource);
-
-                    if (resources.length >= maxResults) {
-                        return resources;
-                    }
+                    allItems.push({ item, type: contentType.key });
                 }
             }
         }
 
-        return resources.slice(0, maxResults);
+        // Tokenize query into individual searchable terms (lowercase, min 2 chars)
+        const queryTokens = query
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(t => t.length >= 2);
+
+        if (queryTokens.length === 0) {
+            return [];
+        }
+
+        // Score each item by relevance
+        const scored = allItems
+            .map(({ item, type }) => {
+                const title = (item.title || '').toLowerCase();
+                const summary = (item.summary || item.description || '').toLowerCase();
+
+                // Count how many query tokens appear in title (weight 3) and summary (weight 1)
+                let score = 0;
+                for (const token of queryTokens) {
+                    if (title.includes(token)) score += 3;
+                    else if (summary.includes(token)) score += 1;
+                }
+
+                return { item, type, score };
+            })
+            .filter(x => x.score > 0)  // Must match at least one token
+            .sort((a, b) => b.score - a.score)
+            .slice(0, maxResults);
+
+        return scored.map(({ item, type }) => {
+            const durationMinutes = item.duration_in_minutes ?? (item.duration_in_hours ? item.duration_in_hours * 60 : undefined);
+            const durationStr = durationMinutes
+                ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`
+                : (item.duration_in_hours ? `${item.duration_in_hours}h` : undefined);
+
+            return {
+                id: item.uid || item.id || `mslearn-${Math.random().toString(36).substr(2, 9)}`,
+                title: item.title || 'Untitled Resource',
+                description: item.summary || item.description || '',
+                url: item.url || `https://learn.microsoft.com/${item.uid || ''}`,
+                thumbnail: item.icon_url || item.image_url,
+                duration: durationStr,
+                level: item.level || item.difficulty,
+                type: type.slice(0, -1),
+                role: item.roles || (item.role ? [item.role] : undefined),
+                products: item.products || (item.product ? [item.product] : undefined),
+            };
+        });
     }
 
     /**
      * Check if service is configured (always true for Microsoft Learn as it's public)
      */
     isConfigured(): boolean {
-        return true; // Microsoft Learn API is public, no API key needed
+        return true;
     }
 }

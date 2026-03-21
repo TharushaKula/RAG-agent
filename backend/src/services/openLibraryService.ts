@@ -29,8 +29,12 @@ interface OpenLibrarySearchResponse {
         cover_i?: number;
         first_publish_year?: number;
         edition_count?: number;
+        ratings_average?: number;
     }>;
 }
+
+// Minimum publish year for tech/programming books to avoid outdated content
+const MIN_PUBLISH_YEAR = 2016;
 
 export class OpenLibraryService {
     private client: AxiosInstance;
@@ -47,22 +51,46 @@ export class OpenLibraryService {
     }
 
     /**
-     * Search for books using Open Library Search API
+     * Search for books using Open Library Search API.
+     * Fetches extra results and filters for English, recent, relevant books.
      */
     async searchBooks(
         query: string,
         maxResults: number = 10
     ): Promise<OpenLibraryBook[]> {
         try {
+            // Fetch more than needed so we can filter effectively
+            const fetchLimit = Math.min(maxResults * 5, 50);
+
             const response = await this.client.get('/search.json', {
                 params: {
                     q: query,
-                    limit: Math.min(maxResults, 100), // Open Library allows up to 100
-                    fields: 'key,title,subtitle,author_name,isbn,publish_year,subject,language,cover_i,first_publish_year,edition_count',
+                    limit: fetchLimit,
+                    fields: 'key,title,subtitle,author_name,isbn,publish_year,subject,language,cover_i,first_publish_year,edition_count,ratings_average',
+                    // Prefer English-language results
+                    language: 'eng',
                 },
             });
 
-            return this.formatBooks(response.data);
+            const allBooks = this.formatBooks(response.data);
+
+            // Filter for quality: recent, English, and relevant to tech/learning
+            const filtered = allBooks.filter(book => {
+                // Must be recent enough for tech content
+                if (book.publishYear && book.publishYear < MIN_PUBLISH_YEAR) return false;
+
+                // Must be English (check language field if available)
+                if (book.language && book.language !== 'eng') return false;
+
+                return true;
+            });
+
+            // If filtering was too aggressive, fall back to unfiltered but still limit
+            if (filtered.length === 0 && allBooks.length > 0) {
+                return allBooks.slice(0, maxResults);
+            }
+
+            return filtered.slice(0, maxResults);
         } catch (error: any) {
             console.warn('Open Library API unavailable:', error.message || 'unknown error');
             return [];
@@ -124,11 +152,11 @@ export class OpenLibraryService {
             return {
                 id: book.key || bookId,
                 title: book.title || 'Untitled Book',
-                description: book.description 
+                description: book.description
                     ? (typeof book.description === 'string' ? book.description : book.description.value || '')
                     : '',
                 url: `${this.baseUrl}${book.key || `/books/${cleanId}`}`,
-                thumbnail: book.covers && book.covers[0] 
+                thumbnail: book.covers && book.covers[0]
                     ? `https://covers.openlibrary.org/b/id/${book.covers[0]}-L.jpg`
                     : undefined,
                 authors: book.authors?.map((a: any) => a.name || a.key) || [],
@@ -154,23 +182,27 @@ export class OpenLibraryService {
         return data.docs.map((doc) => {
             // Build book URL
             const bookKey = doc.key || '';
-            const bookUrl = bookKey.startsWith('http') 
-                ? bookKey 
+            const bookUrl = bookKey.startsWith('http')
+                ? bookKey
                 : `${this.baseUrl}${bookKey.startsWith('/') ? bookKey : `/${bookKey}`}`;
 
             // Build cover image URL
-            const thumbnail = doc.cover_i 
+            const thumbnail = doc.cover_i
                 ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`
                 : undefined;
 
-            // Get publish year
-            const publishYear = doc.first_publish_year 
-                || (doc.publish_year && doc.publish_year.length > 0 ? doc.publish_year[0] : undefined);
+            // Get publish year (prefer most recent)
+            const publishYear = doc.publish_year && doc.publish_year.length > 0
+                ? Math.max(...doc.publish_year)
+                : doc.first_publish_year;
+
+            // Get primary language
+            const language = doc.language && doc.language.length > 0 ? doc.language[0] : undefined;
 
             return {
                 id: bookKey.replace('/works/', '').replace('/books/', '') || `ol-${Math.random().toString(36).substr(2, 9)}`,
                 title: doc.title || 'Untitled Book',
-                description: doc.subtitle 
+                description: doc.subtitle
                     ? `${doc.title || ''}: ${doc.subtitle}`
                     : `Book by ${doc.author_name?.join(', ') || 'Unknown Author'}`,
                 url: bookUrl,
@@ -179,7 +211,7 @@ export class OpenLibraryService {
                 isbn: doc.isbn && doc.isbn.length > 0 ? doc.isbn[0] : undefined,
                 publishYear: publishYear,
                 subjects: doc.subject || [],
-                language: doc.language && doc.language.length > 0 ? doc.language[0] : undefined,
+                language: language,
             };
         });
     }

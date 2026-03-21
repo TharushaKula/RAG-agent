@@ -103,6 +103,9 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
                     console.log("🔹 Auto-selecting JD:", data.jd[0]);
                     setSelectedJD(data.jd[0]);
                 }
+            } else if (res.status === 401) {
+                console.warn("⚠️ Token expired or invalid. Logging out.");
+                logout();
             } else {
                 console.error("❌ Failed to fetch files, status:", res.status);
             }

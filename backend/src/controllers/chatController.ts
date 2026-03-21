@@ -43,15 +43,12 @@ export const chat = async (req: Request, res: Response) => {
             return `${sourceType} ${sourceName}\n${doc.pageContent}`;
         }).join("\n\n---\n\n");
 
-        // --- FIX: SAFE SOURCE HEADER ---
         const validSources = contextDocs.map((doc: any) => ({
             source: doc.metadata.source,
         }));
 
-        // Encode safe JSON to Base64
         const encodedSources = Buffer.from(JSON.stringify(validSources)).toString("base64");
 
-        // 2. Setup LLM (Force Local Ollama)
         const llm = new ChatOllama({
             model: "gpt-oss:20b-cloud",
             baseUrl: "http://127.0.0.1:11434", // Localhost IP

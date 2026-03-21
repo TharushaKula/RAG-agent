@@ -43,3 +43,6 @@ next-env.d.ts
 # IDEs
 .vscode/
 .idea/
+
+# Local fine-tuned model artifacts (too large for GitHub)
+embedding-service/custom-sbert-model/model.safetensors

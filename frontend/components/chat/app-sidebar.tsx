@@ -71,18 +71,18 @@ export function AppSidebar({
             isActive: activeView === "chat",
             onClick: () => setActiveView("chat"),
         },
-        {
-            title: "Knowledge Base",
-            icon: Database,
-            isActive: activeView === "knowledge",
-            onClick: () => setActiveView("knowledge"),
-        },
-        {
-            title: "GitHub Agent",
-            icon: Github,
-            isActive: activeView === "github-agent",
-            onClick: () => setActiveView("github-agent"),
-        },
+        // {
+        //     title: "Knowledge Base",
+        //     icon: Database,
+        //     isActive: activeView === "knowledge",
+        //     onClick: () => setActiveView("knowledge"),
+        // },
+        // {
+        //     title: "GitHub Agent",
+        //     icon: Github,
+        //     isActive: activeView === "github-agent",
+        //     onClick: () => setActiveView("github-agent"),
+        // },
         {
             title: "CV Uploader",
             icon: FileText,
@@ -95,24 +95,24 @@ export function AppSidebar({
             isActive: activeView === "semantic-matcher",
             onClick: () => setActiveView("semantic-matcher"),
         },
-        {
-            title: "Industry Info",
-            icon: Settings2,
-            isActive: activeView === "industry-info",
-            onClick: () => setActiveView("industry-info"),
-        },
-        {
-            title: "Learning Materials",
-            icon: BookOpen,
-            isActive: activeView === "learning-materials",
-            onClick: () => setActiveView("learning-materials"),
-        },
-        {
-            title: "Podcasts",
-            icon: Headphones,
-            isActive: activeView === "podcasts",
-            onClick: () => setActiveView("podcasts"),
-        },
+        // {
+        //     title: "Industry Info",
+        //     icon: Settings2,
+        //     isActive: activeView === "industry-info",
+        //     onClick: () => setActiveView("industry-info"),
+        // },
+        // {
+        //     title: "Learning Materials",
+        //     icon: BookOpen,
+        //     isActive: activeView === "learning-materials",
+        //     onClick: () => setActiveView("learning-materials"),
+        // },
+        // {
+        //     title: "Podcasts",
+        //     icon: Headphones,
+        //     isActive: activeView === "podcasts",
+        //     onClick: () => setActiveView("podcasts"),
+        // },
         {
             title: "Roadmap",
             icon: Target,
