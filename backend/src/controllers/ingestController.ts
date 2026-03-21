@@ -6,6 +6,11 @@ import * as cheerio from "cheerio";
 
 export const ingestData = async (req: Request, res: Response) => {
     try {
+        const userId = (req as any).user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
         const contentType = req.headers["content-type"] || "";
         let text = "";
         let source = "user-upload";
@@ -39,11 +44,6 @@ export const ingestData = async (req: Request, res: Response) => {
         } else {
             return res.status(400).json({ error: "Unsupported content type" });
         }
-
-        if (!(req as any).user) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        const userId = (req as any).user.userId;
 
         const vectorStore = await getVectorStore();
 

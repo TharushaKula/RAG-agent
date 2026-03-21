@@ -38,13 +38,13 @@ export async function getRetrieverForUser(userId: string, filterSources?: string
     const vectorStore = await getVectorStore();
 
     const filter: any = {
-        "userId": {
+        "metadata.userId": {
             $eq: userId
         }
     };
 
     if (filterSources && filterSources.length > 0) {
-        filter["source"] = {
+        filter["metadata.source"] = {
             $in: filterSources
         };
     }
