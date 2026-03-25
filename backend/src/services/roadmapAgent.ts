@@ -8,6 +8,7 @@ import { MicrosoftLearnService } from "./microsoftLearnService";
 import { MITOCWService } from "./mitOcwService";
 import { OpenLibraryService } from "./openLibraryService";
 import { RoadmapValidatorAgent } from "./roadmapValidatorAgent";
+import { createLangfuseHandler } from "../utils/langfuse";
 import { getVectorStore } from "./ragService";
 import clientPromise from "../config/db";
 import axios from "axios";
@@ -140,13 +141,15 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
 
             const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
             const timeoutMs = 15000;
+            const lfHandler = createLangfuseHandler({ traceName: "roadmap-classify-category", tags: ["roadmap"] });
 
             const response = await Promise.race([
-                chain.invoke({ text: text.slice(0, 3000) }),
+                chain.invoke({ text: text.slice(0, 3000) }, { callbacks: lfHandler ? [lfHandler] : [] }),
                 new Promise<string>((_, reject) =>
                     setTimeout(() => reject(new Error("Category classification timed out")), timeoutMs)
                 ),
             ]) as string;
+            await lfHandler?.shutdownAsync();
 
             // Parse JSON response
             const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -333,15 +336,17 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "one short senten
         ]);
         
         const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
-        
+        const lfHandler = createLangfuseHandler({ traceName: "roadmap-classify-role", tags: ["roadmap"] });
+
         try {
             const response = await Promise.race([
-                chain.invoke({ role: targetRole }),
+                chain.invoke({ role: targetRole }, { callbacks: lfHandler ? [lfHandler] : [] }),
                 new Promise<string>((_, reject) =>
                     setTimeout(() => reject(new Error("Category classification timed out")), 10000)
                 ),
             ]) as string;
-            
+            await lfHandler?.shutdownAsync();
+
             const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
             const match = cleaned.match(/\{[\s\S]*\}/);
             if (match) {
@@ -526,16 +531,18 @@ Return ONLY valid JSON, no additional text.`
             }
 
             console.log(`🤖 Generating roadmap with AI (category: ${category}, source: ${source})...`);
-            
+            const lfGenHandler = createLangfuseHandler({ traceName: "roadmap-generate", tags: ["roadmap"], metadata: { category, source } });
+
             // Add timeout wrapper for the chain invocation
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => reject(new Error("Roadmap generation timed out after 2 minutes")), 120000);
             });
-            
+
             const response = await Promise.race([
-                chain.invoke({ context }),
+                chain.invoke({ context }, { callbacks: lfGenHandler ? [lfGenHandler] : [] }),
                 timeoutPromise
             ]) as string;
+            await lfGenHandler?.shutdownAsync();
             
             // Parse JSON response - try to extract JSON from markdown code blocks or plain JSON
             let jsonText = response.trim();
@@ -617,11 +624,13 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                     }
                     console.log(`🔍 Validator round ${round + 1}: ${validationResult.issues?.join("; ") || validationResult.feedback}`);
                     let refinementResponse: string;
+                    const lfRefineHandler = createLangfuseHandler({ traceName: "roadmap-refine", tags: ["roadmap"], metadata: { round: round + 1 } });
                     try {
                         refinementResponse = await Promise.race([
-                            refinementChain.invoke({ context, feedback: validationResult.feedback }),
+                            refinementChain.invoke({ context, feedback: validationResult.feedback }, { callbacks: lfRefineHandler ? [lfRefineHandler] : [] }),
                             timeoutPromise,
                         ]) as string;
+                        await lfRefineHandler?.shutdownAsync();
                     } catch (refineErr: any) {
                         console.warn("Refinement error, using current roadmap:", refineErr?.message || refineErr);
                         break;
@@ -1494,10 +1503,12 @@ Respond with JSON: {{ "commonSkills": ["skill1", "skill2", ...], "insights": "br
             ]);
 
             const chain = RunnableSequence.from([prompt, this.llm, new StringOutputParser()]);
+            const lfPatternHandler = createLangfuseHandler({ traceName: "roadmap-discover-patterns", tags: ["roadmap"] });
             const response = await Promise.race([
-                chain.invoke({}),
+                chain.invoke({}, { callbacks: lfPatternHandler ? [lfPatternHandler] : [] }),
                 new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Pattern discovery timeout")), 20000))
             ]) as string;
+            await lfPatternHandler?.shutdownAsync();
 
             const cleaned = response.trim().replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
             const match = cleaned.match(/\{[\s\S]*\}/);

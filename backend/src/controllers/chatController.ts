@@ -4,6 +4,7 @@ import { getRetrieverForUser } from "../services/ragService";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
+import { createLangfuseHandler } from "../utils/langfuse";
 
 export const chat = async (req: Request, res: Response) => {
     try {
@@ -83,10 +84,17 @@ export const chat = async (req: Request, res: Response) => {
             new StringOutputParser()
         ]);
 
-        const stream = await chain.stream({
-            context: context,
-            question: question,
+        const lfHandler = createLangfuseHandler({
+            traceName: "rag-chat",
+            userId,
+            tags: ["chat"],
+            metadata: { sources: activeSources },
         });
+
+        const stream = await chain.stream(
+            { context: context, question: question },
+            { callbacks: lfHandler ? [lfHandler] : [] }
+        );
 
         // 4. Return stream with Sources in Header
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -96,6 +104,9 @@ export const chat = async (req: Request, res: Response) => {
             res.write(chunk);
         }
         res.end();
+
+        // Flush Langfuse events after stream completes
+        await lfHandler?.shutdownAsync();
 
     } catch (error: any) {
         console.error("Chat error:", error);

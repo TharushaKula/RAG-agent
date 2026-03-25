@@ -29,22 +29,24 @@ export async function deleteUserDocumentsByType(userId: string, type: "cv" | "jd
     const collection = client.db("rag-agent").collection("documents");
 
     await collection.deleteMany({
-        "metadata.userId": userId,
-        "metadata.type": type
+        "userId": userId,
+        "type": type
     });
 }
 
 export async function getRetrieverForUser(userId: string, filterSources?: string[]) {
     const vectorStore = await getVectorStore();
 
+    // LangChain's MongoDBAtlasVectorSearch spreads metadata at top level
+    // (vectorstores.js: ...documents[idx].metadata), so filter on top-level fields
     const filter: any = {
-        "metadata.userId": {
+        "userId": {
             $eq: userId
         }
     };
 
     if (filterSources && filterSources.length > 0) {
-        filter["metadata.source"] = {
+        filter["source"] = {
             $in: filterSources
         };
     }

@@ -1,0 +1,667 @@
+{
+  "metadata": {
+    "description": "Ground truth evaluation dataset for Skill Bridge AI components",
+    "version": "2.0",
+    "created": "2026-03-24",
+    "components": ["semantic_matcher", "embedding_retrieval", "requirement_extraction", "roadmap_agent", "validator_agent", "rag_chat_agent"]
+  },
+
+  "semantic_match_pairs": [
+    {"cv_chunk": "Developed RESTful APIs using Node.js and Express framework for 3 years", "jd_requirement": "3+ years of experience building REST APIs with Node.js", "label": "match", "type": "experience"},
+    {"cv_chunk": "Proficient in Python, including Django and Flask web frameworks", "jd_requirement": "Strong Python development skills", "label": "match", "type": "skill"},
+    {"cv_chunk": "Bachelor of Science in Computer Science from University of Colombo", "jd_requirement": "Bachelor's degree in Computer Science or related field", "label": "match", "type": "qualification"},
+    {"cv_chunk": "Led a team of 5 developers in an Agile environment", "jd_requirement": "Experience leading development teams", "label": "match", "type": "experience"},
+    {"cv_chunk": "Built machine learning pipelines using TensorFlow and scikit-learn", "jd_requirement": "Experience with ML frameworks such as TensorFlow or PyTorch", "label": "match", "type": "skill"},
+    {"cv_chunk": "Managed CI/CD pipelines using Jenkins and GitHub Actions", "jd_requirement": "Experience with CI/CD tools and DevOps practices", "label": "match", "type": "skill"},
+    {"cv_chunk": "Designed and maintained PostgreSQL and MongoDB databases", "jd_requirement": "Proficiency in SQL and NoSQL databases", "label": "match", "type": "skill"},
+    {"cv_chunk": "Implemented authentication systems using JWT and OAuth 2.0", "jd_requirement": "Knowledge of authentication and authorization protocols", "label": "match", "type": "skill"},
+    {"cv_chunk": "Created responsive web interfaces using React and TypeScript", "jd_requirement": "Frontend development with React.js", "label": "match", "type": "skill"},
+    {"cv_chunk": "5 years of experience in full-stack web development", "jd_requirement": "Minimum 4 years of full-stack development experience", "label": "match", "type": "experience"},
+    {"cv_chunk": "AWS Certified Solutions Architect with hands-on cloud experience", "jd_requirement": "AWS or Azure cloud certification preferred", "label": "match", "type": "qualification"},
+    {"cv_chunk": "Published research on natural language processing techniques", "jd_requirement": "Background in NLP and text analytics", "label": "match", "type": "skill"},
+    {"cv_chunk": "Experience with Docker containerization and Kubernetes orchestration", "jd_requirement": "Containerization and orchestration experience (Docker, Kubernetes)", "label": "match", "type": "skill"},
+    {"cv_chunk": "Strong understanding of data structures, algorithms, and system design", "jd_requirement": "Solid CS fundamentals including algorithms and data structures", "label": "match", "type": "skill"},
+    {"cv_chunk": "Conducted code reviews and mentored junior developers", "jd_requirement": "Mentoring and code review experience", "label": "match", "type": "experience"},
+    {"cv_chunk": "Built real-time chat applications using WebSocket and Socket.IO", "jd_requirement": "Experience with real-time communication protocols", "label": "match", "type": "skill"},
+    {"cv_chunk": "Master of Science in Artificial Intelligence from Imperial College London", "jd_requirement": "Master's degree in AI, ML, or related field", "label": "match", "type": "qualification"},
+    {"cv_chunk": "Proficient in version control with Git and GitHub", "jd_requirement": "Experience with Git-based version control workflows", "label": "match", "type": "skill"},
+    {"cv_chunk": "Developed mobile applications using React Native for iOS and Android", "jd_requirement": "Cross-platform mobile development experience", "label": "match", "type": "skill"},
+    {"cv_chunk": "Worked with Elasticsearch for full-text search and analytics", "jd_requirement": "Experience with search engines like Elasticsearch or Solr", "label": "match", "type": "skill"},
+
+    {"cv_chunk": "Experienced in Python and Django web development", "jd_requirement": "5+ years of Java enterprise development with Spring Boot", "label": "no_match", "type": "skill"},
+    {"cv_chunk": "Bachelor's degree in Mechanical Engineering", "jd_requirement": "Degree in Computer Science or Software Engineering", "label": "no_match", "type": "qualification"},
+    {"cv_chunk": "1 year internship experience in web development", "jd_requirement": "Minimum 5 years of professional software engineering experience", "label": "no_match", "type": "experience"},
+    {"cv_chunk": "Skilled in graphic design using Adobe Photoshop and Illustrator", "jd_requirement": "Backend development with microservices architecture", "label": "no_match", "type": "skill"},
+    {"cv_chunk": "Experience managing social media marketing campaigns", "jd_requirement": "Experience with cloud infrastructure and DevOps", "label": "no_match", "type": "experience"},
+    {"cv_chunk": "Worked as a project manager coordinating cross-functional teams", "jd_requirement": "Hands-on coding experience in C++ or Rust", "label": "no_match", "type": "skill"},
+    {"cv_chunk": "Proficient in Microsoft Excel and PowerPoint", "jd_requirement": "Proficiency in machine learning frameworks like TensorFlow", "label": "no_match", "type": "skill"},
+    {"cv_chunk": "Experience in retail customer service", "jd_requirement": "Experience building distributed systems at scale", "label": "no_match", "type": "experience"},
+    {"cv_chunk": "Certificate in Digital Marketing from Google", "jd_requirement": "AWS Solutions Architect or equivalent cloud certification", "label": "no_match", "type": "qualification"},
+    {"cv_chunk": "Managed inventory and supply chain logistics", "jd_requirement": "Experience with database optimization and query tuning", "label": "no_match", "type": "skill"},
+    {"cv_chunk": "Diploma in Hospitality Management", "jd_requirement": "PhD in Computer Science or Machine Learning", "label": "no_match", "type": "qualification"},
+    {"cv_chunk": "2 years teaching English as a second language", "jd_requirement": "Experience with agile software development methodologies", "label": "no_match", "type": "experience"},
+    {"cv_chunk": "Experienced in data entry and clerical tasks", "jd_requirement": "Expertise in data engineering and ETL pipelines", "label": "no_match", "type": "skill"},
+    {"cv_chunk": "Organized community outreach events and fundraisers", "jd_requirement": "Experience designing and implementing REST APIs", "label": "no_match", "type": "experience"},
+    {"cv_chunk": "Proficient in WordPress website building", "jd_requirement": "Experience with React, Angular, or Vue.js SPAs", "label": "no_match", "type": "skill"},
+
+    {"cv_chunk": "Some exposure to Python scripting for automation", "jd_requirement": "Strong Python development skills with 3+ years experience", "label": "partial_match", "type": "skill"},
+    {"cv_chunk": "Familiar with basic SQL queries and database concepts", "jd_requirement": "Expert-level database administration and optimization", "label": "partial_match", "type": "skill"},
+    {"cv_chunk": "2 years of frontend development with jQuery and Bootstrap", "jd_requirement": "5+ years of modern frontend development with React", "label": "partial_match", "type": "experience"},
+    {"cv_chunk": "Completed online courses in cloud computing fundamentals", "jd_requirement": "AWS Certified Solutions Architect certification required", "label": "partial_match", "type": "qualification"},
+    {"cv_chunk": "Built small personal projects using machine learning libraries", "jd_requirement": "Production experience deploying ML models at scale", "label": "partial_match", "type": "experience"},
+    {"cv_chunk": "Basic understanding of Docker for local development", "jd_requirement": "Advanced containerization with Docker and Kubernetes in production", "label": "partial_match", "type": "skill"},
+    {"cv_chunk": "Used Git for personal projects and university assignments", "jd_requirement": "Expert in Git workflows, branching strategies, and CI/CD integration", "label": "partial_match", "type": "skill"},
+    {"cv_chunk": "Built a REST API as a university capstone project", "jd_requirement": "5+ years designing enterprise-grade RESTful microservices", "label": "partial_match", "type": "experience"},
+    {"cv_chunk": "Bachelor's in Information Technology", "jd_requirement": "Master's degree in Computer Science required", "label": "partial_match", "type": "qualification"},
+    {"cv_chunk": "Experience with small team coordination on 2-person projects", "jd_requirement": "Led engineering teams of 10+ across multiple time zones", "label": "partial_match", "type": "experience"}
+  ],
+
+  "requirement_extraction_cases": [
+    {
+      "jd_text": "Requirements:\n- 3+ years experience with React.js\n- Strong knowledge of TypeScript\n- Experience with RESTful APIs\n- Bachelor's degree in Computer Science\n- Excellent communication skills",
+      "expected_requirements": [
+        {"text": "3+ years experience with React.js", "type": "experience"},
+        {"text": "Strong knowledge of TypeScript", "type": "skill"},
+        {"text": "Experience with RESTful APIs", "type": "skill"},
+        {"text": "Bachelor's degree in Computer Science", "type": "qualification"},
+        {"text": "Excellent communication skills", "type": "skill"}
+      ]
+    },
+    {
+      "jd_text": "We are looking for a Senior Backend Engineer.\n\nResponsibilities:\n• Design and build scalable microservices\n• Optimize database performance\n\nQualifications:\n• 5+ years of backend development in Java or Python\n• Experience with AWS or GCP\n• Strong understanding of distributed systems\n• Master's degree preferred\n\nBenefits: Competitive salary, health insurance, remote work options.",
+      "expected_requirements": [
+        {"text": "5+ years of backend development in Java or Python", "type": "experience"},
+        {"text": "Experience with AWS or GCP", "type": "skill"},
+        {"text": "Strong understanding of distributed systems", "type": "skill"},
+        {"text": "Master's degree preferred", "type": "qualification"}
+      ]
+    },
+    {
+      "jd_text": "Data Scientist Role\n\nRequired Skills:\n1) Proficiency in Python and R\n2) Experience with TensorFlow or PyTorch\n3) Strong statistics and probability background\n4) 2+ years working with large datasets\n\nNice to have:\na) Published research papers\nb) Experience with NLP",
+      "expected_requirements": [
+        {"text": "Proficiency in Python and R", "type": "skill"},
+        {"text": "Experience with TensorFlow or PyTorch", "type": "skill"},
+        {"text": "Strong statistics and probability background", "type": "skill"},
+        {"text": "2+ years working with large datasets", "type": "experience"}
+      ]
+    }
+  ],
+
+  "rag_retrieval_cases": [
+    {
+      "query": "What programming languages does the candidate know?",
+      "relevant_sources": ["cv"],
+      "expected_section_types": ["skills"],
+      "description": "Should retrieve skill sections from CV"
+    },
+    {
+      "query": "Does the candidate meet the experience requirements?",
+      "relevant_sources": ["cv", "jd"],
+      "expected_section_types": ["experience"],
+      "description": "Should retrieve experience sections from both CV and JD"
+    },
+    {
+      "query": "What qualifications does the job require?",
+      "relevant_sources": ["jd"],
+      "expected_section_types": ["education", "qualification"],
+      "description": "Should retrieve qualification sections from JD"
+    }
+  ],
+
+  "sbert_retrieval_pairs": [
+    {"query": "How to set up the development environment?", "positive_doc": "To set up the dev environment, install Node.js 18+, run npm install in both frontend and backend directories, and start MongoDB locally.", "hard_negative_doc": "The production deployment uses Docker Compose with Nginx as a reverse proxy."},
+    {"query": "What authentication method is used?", "positive_doc": "The application uses JWT-based authentication with bcrypt password hashing and 7-day token expiry.", "hard_negative_doc": "User preferences include learning styles, time availability, and career goals."},
+    {"query": "How does the embedding service work?", "positive_doc": "The embedding service is a FastAPI Python server that uses SBERT (all-mpnet-base-v2) to generate 768-dimensional vectors from text.", "hard_negative_doc": "The chat interface supports streaming responses with source citations."},
+    {"query": "What databases does the system use?", "positive_doc": "MongoDB Atlas serves as the primary database for user data, documents, roadmaps, and vector embeddings with cosine similarity search.", "hard_negative_doc": "The frontend is built with Next.js 15 and React 19 using the App Router."},
+    {"query": "How are learning roadmaps generated?", "positive_doc": "Roadmaps are generated by the RoadmapAgent using Ollama LLM, which analyzes skill gaps between CV and JD, then creates staged learning paths with resources from YouTube, Microsoft Learn, and MIT OCW.", "hard_negative_doc": "The semantic matcher compares CV sections against JD requirements using cosine similarity of embeddings."},
+    {"query": "How to upload a CV?", "positive_doc": "Upload a CV by navigating to the CV Analyzer, selecting a PDF file, and clicking upload. The system extracts text, chunks it, generates embeddings, and stores everything in MongoDB.", "hard_negative_doc": "GitHub profile analysis uses the REST API to fetch repos, stars, and language statistics."},
+    {"query": "What is the semantic matching threshold?", "positive_doc": "The semantic matcher uses a similarity threshold of 0.45 for cosine similarity, with scores above 0.75 considered matched and scores between 0.45-0.75 considered partially matched.", "hard_negative_doc": "The chat controller streams responses token by token to the frontend."},
+    {"query": "How does the chat feature work?", "positive_doc": "The chat uses RAG: user questions are embedded, matched against stored document vectors via MongoDB Atlas vector search, and the top 10 relevant chunks are passed as context to the Ollama LLM for response generation.", "hard_negative_doc": "Roadmap modules can be marked as completed or in-progress to track learning progress."},
+    {"query": "What external APIs are integrated?", "positive_doc": "The system integrates YouTube Data API for video search, GitHub REST API for profile analysis, Hacker News API for tech trends, Microsoft Learn and MIT OCW for courses, and Open Library for books.", "hard_negative_doc": "User passwords are hashed with bcrypt using 10 salt rounds before storage."},
+    {"query": "How to configure Ollama?", "positive_doc": "Set OLLAMA_BASE_URL and OLLAMA_MODEL environment variables. The default model is gpt-oss:20b-cloud running on localhost port 11434.", "hard_negative_doc": "The frontend uses AuthContext with localStorage to persist JWT tokens across sessions."},
+    {"query": "What is the vector dimension size?", "positive_doc": "The SBERT model produces 768-dimensional embedding vectors that are stored in MongoDB Atlas for cosine similarity search.", "hard_negative_doc": "Industry trends are fetched from Hacker News with a 10-minute cache TTL."},
+    {"query": "How are CV sections extracted?", "positive_doc": "CV sections are identified by matching 30+ header patterns like Skills, Experience, Education, and Summary. Large sections are sub-chunked into 250-char pieces for focused embedding comparison.", "hard_negative_doc": "The YouTube service filters videos by view count above 1000 and duration between 2-3 hours."},
+    {"query": "How does GitHub analysis work?", "positive_doc": "The GitHubAgentService fetches user profile data and repo lists via the GitHub REST API, calculates aggregate stats like total stars and top languages, and streams results to the frontend via Socket.IO.", "hard_negative_doc": "Requirements are extracted from job descriptions using LLM-based parsing with regex fallback."},
+    {"query": "What is the file upload limit?", "positive_doc": "File uploads are handled by Multer middleware configured for PDF and text files via multipart form data.", "hard_negative_doc": "The roadmap validator agent checks generated roadmaps for quality and completeness."},
+    {"query": "How does progress tracking work?", "positive_doc": "Users can mark roadmap modules as not started, in progress, or completed. Resource-level tracking records individual video, course, and book completions. Overall progress is calculated as percentage of completed modules.", "hard_negative_doc": "The embedding service uses batch processing with a batch size of 32 for efficient vector generation."}
+  ],
+
+  "roadmap_agent_cases": [
+    {
+      "id": "ra-001",
+      "description": "Frontend developer targeting Senior React role",
+      "expected_category": "frontend",
+      "expected_topic_keywords": ["React", "TypeScript", "state management", "testing", "performance optimization", "Next.js"],
+      "pre_generated_roadmap": {
+        "title": "Senior React Developer Roadmap",
+        "description": "A comprehensive learning path to become a senior React developer with modern tooling and best practices.",
+        "stages": [
+          {
+            "id": "s1", "name": "Advanced JavaScript & TypeScript Foundations", "description": "Master the language fundamentals that underpin React development", "order": 1,
+            "modules": [
+              {"id": "m1", "title": "Advanced TypeScript Patterns", "description": "Generics, utility types, conditional types, and type-safe patterns", "order": 1, "estimatedHours": 25, "prerequisites": [], "resources": [{"type": "video", "title": "TypeScript Advanced Tutorial", "url": "https://youtube.com/watch?v=example1", "description": "Deep dive into TypeScript"}]},
+              {"id": "m2", "title": "Modern JavaScript ES2024+", "description": "Async iterators, decorators, pattern matching proposals", "order": 2, "estimatedHours": 20, "prerequisites": [], "resources": [{"type": "course", "title": "Modern JS on MDN", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript", "description": "MDN JavaScript guide"}]},
+              {"id": "m3", "title": "Functional Programming in JS", "description": "Immutability, pure functions, composition, monads", "order": 3, "estimatedHours": 18, "prerequisites": ["m1"], "resources": [{"type": "book", "title": "Functional JS", "url": "https://openlibrary.org/search?q=functional+javascript", "description": "FP patterns in JavaScript"}]}
+            ]
+          },
+          {
+            "id": "s2", "name": "React Architecture & Patterns", "description": "Build scalable React applications with advanced patterns", "order": 2,
+            "modules": [
+              {"id": "m4", "title": "React Server Components & Next.js App Router", "description": "Server-side rendering, streaming, and the Next.js 14+ app router", "order": 1, "estimatedHours": 30, "prerequisites": ["m1", "m2"], "resources": [{"type": "video", "title": "Next.js Tutorial", "url": "https://youtube.com/watch?v=example2", "description": "Next.js app router guide"}]},
+              {"id": "m5", "title": "State Management Strategies", "description": "Zustand, Jotai, Redux Toolkit, React Query, and server state patterns", "order": 2, "estimatedHours": 22, "prerequisites": ["m4"], "resources": [{"type": "course", "title": "State Management in React", "url": "https://learn.microsoft.com/en-us/training/", "description": "Managing complex state"}]},
+              {"id": "m6", "title": "Component Design Systems", "description": "Atomic design, compound components, render props, and headless UI", "order": 3, "estimatedHours": 20, "prerequisites": ["m4"], "resources": [{"type": "article", "title": "Design Systems Guide", "url": "https://dev.to/designsystems", "description": "Building design systems"}]}
+            ]
+          },
+          {
+            "id": "s3", "name": "Testing & Performance", "description": "Ensure quality and speed in production applications", "order": 3,
+            "modules": [
+              {"id": "m7", "title": "Testing React Applications", "description": "Unit testing with Vitest, integration with Testing Library, E2E with Playwright", "order": 1, "estimatedHours": 25, "prerequisites": ["m4", "m5"], "resources": [{"type": "video", "title": "React Testing Guide", "url": "https://youtube.com/watch?v=example3", "description": "Comprehensive React testing"}]},
+              {"id": "m8", "title": "Performance Optimization", "description": "React profiler, code splitting, lazy loading, memoization, bundle analysis", "order": 2, "estimatedHours": 20, "prerequisites": ["m7"], "resources": [{"type": "course", "title": "Web Performance", "url": "https://web.dev/performance", "description": "Web performance fundamentals"}]},
+              {"id": "m9", "title": "Accessibility & Internationalization", "description": "WCAG compliance, ARIA patterns, i18n with react-intl", "order": 3, "estimatedHours": 15, "prerequisites": ["m6"], "resources": [{"type": "article", "title": "A11y Guide", "url": "https://www.w3.org/WAI/", "description": "Web accessibility initiative"}]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ra-002",
+      "description": "Backend engineer targeting cloud-native architecture",
+      "expected_category": "backend",
+      "expected_topic_keywords": ["Node.js", "API design", "database", "microservices", "Docker", "authentication"],
+      "pre_generated_roadmap": {
+        "title": "Cloud-Native Backend Engineering Roadmap",
+        "description": "Master backend development with focus on scalable cloud-native architectures.",
+        "stages": [
+          {
+            "id": "s1", "name": "Core Backend Fundamentals", "description": "Build strong server-side foundations", "order": 1,
+            "modules": [
+              {"id": "m1", "title": "Node.js & Express Deep Dive", "description": "Event loop, streams, middleware patterns, error handling", "order": 1, "estimatedHours": 28, "prerequisites": [], "resources": [{"type": "video", "title": "Node.js Complete", "url": "https://youtube.com/watch?v=backend1", "description": "Node.js deep dive"}]},
+              {"id": "m2", "title": "RESTful API Design Principles", "description": "REST maturity model, HATEOAS, versioning, documentation with OpenAPI", "order": 2, "estimatedHours": 20, "prerequisites": ["m1"], "resources": [{"type": "course", "title": "API Design", "url": "https://learn.microsoft.com/en-us/training/", "description": "API design patterns"}]},
+              {"id": "m3", "title": "Database Architecture", "description": "PostgreSQL advanced queries, MongoDB aggregation, Redis caching strategies", "order": 3, "estimatedHours": 30, "prerequisites": ["m1"], "resources": [{"type": "book", "title": "Database Design", "url": "https://openlibrary.org/search?q=database+design", "description": "Database architecture"}]},
+              {"id": "m4", "title": "Authentication & Security", "description": "JWT, OAuth 2.0, RBAC, rate limiting, OWASP top 10", "order": 4, "estimatedHours": 22, "prerequisites": ["m2"], "resources": [{"type": "video", "title": "Web Security", "url": "https://youtube.com/watch?v=security1", "description": "Security best practices"}]}
+            ]
+          },
+          {
+            "id": "s2", "name": "Distributed Systems", "description": "Scale backend services for production", "order": 2,
+            "modules": [
+              {"id": "m5", "title": "Microservices Architecture", "description": "Service decomposition, inter-service communication, saga pattern", "order": 1, "estimatedHours": 35, "prerequisites": ["m2", "m3"], "resources": [{"type": "course", "title": "Microservices", "url": "https://learn.microsoft.com/en-us/training/", "description": "Microservices patterns"}]},
+              {"id": "m6", "title": "Containerization with Docker", "description": "Multi-stage builds, Docker Compose, container orchestration basics", "order": 2, "estimatedHours": 20, "prerequisites": ["m1"], "resources": [{"type": "video", "title": "Docker Tutorial", "url": "https://youtube.com/watch?v=docker1", "description": "Docker fundamentals"}]},
+              {"id": "m7", "title": "Message Queues & Event-Driven Architecture", "description": "RabbitMQ, Kafka, event sourcing, CQRS patterns", "order": 3, "estimatedHours": 25, "prerequisites": ["m5"], "resources": [{"type": "book", "title": "Event-Driven Design", "url": "https://openlibrary.org/search?q=event+driven", "description": "Event-driven architecture"}]}
+            ]
+          },
+          {
+            "id": "s3", "name": "Cloud & DevOps", "description": "Deploy and manage cloud infrastructure", "order": 3,
+            "modules": [
+              {"id": "m8", "title": "AWS Cloud Services", "description": "EC2, Lambda, S3, RDS, CloudFormation, IAM", "order": 1, "estimatedHours": 35, "prerequisites": ["m5", "m6"], "resources": [{"type": "course", "title": "AWS Fundamentals", "url": "https://learn.microsoft.com/en-us/training/", "description": "AWS cloud services"}]},
+              {"id": "m9", "title": "CI/CD Pipeline Engineering", "description": "GitHub Actions, automated testing, blue-green deployments", "order": 2, "estimatedHours": 20, "prerequisites": ["m6"], "resources": [{"type": "video", "title": "CI/CD Guide", "url": "https://youtube.com/watch?v=cicd1", "description": "CI/CD pipeline setup"}]},
+              {"id": "m10", "title": "Observability & Monitoring", "description": "Prometheus, Grafana, distributed tracing, structured logging", "order": 3, "estimatedHours": 18, "prerequisites": ["m8"], "resources": [{"type": "article", "title": "Observability Guide", "url": "https://opentelemetry.io/docs/", "description": "Observability fundamentals"}]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ra-003",
+      "description": "Data science aspirant targeting ML Engineer",
+      "expected_category": "data-science",
+      "expected_topic_keywords": ["Python", "machine learning", "statistics", "TensorFlow", "data analysis", "deep learning"],
+      "pre_generated_roadmap": {
+        "title": "Machine Learning Engineer Roadmap",
+        "description": "From data science fundamentals to production ML systems.",
+        "stages": [
+          {
+            "id": "s1", "name": "Mathematics & Python Foundations", "description": "Build the math and programming base for ML", "order": 1,
+            "modules": [
+              {"id": "m1", "title": "Linear Algebra & Calculus for ML", "description": "Vectors, matrices, eigenvalues, gradients, chain rule", "order": 1, "estimatedHours": 30, "prerequisites": [], "resources": [{"type": "course", "title": "Math for ML", "url": "https://ocw.mit.edu/courses/mathematics/", "description": "MIT OCW math courses"}]},
+              {"id": "m2", "title": "Probability & Statistics", "description": "Distributions, hypothesis testing, Bayesian inference", "order": 2, "estimatedHours": 25, "prerequisites": ["m1"], "resources": [{"type": "book", "title": "Statistics Fundamentals", "url": "https://openlibrary.org/search?q=statistics", "description": "Statistics textbook"}]},
+              {"id": "m3", "title": "Python for Data Science", "description": "NumPy, Pandas, Matplotlib, Scikit-learn basics", "order": 3, "estimatedHours": 25, "prerequisites": [], "resources": [{"type": "video", "title": "Python Data Science", "url": "https://youtube.com/watch?v=pyds1", "description": "Python for data science"}]}
+            ]
+          },
+          {
+            "id": "s2", "name": "Machine Learning Fundamentals", "description": "Core ML algorithms and practices", "order": 2,
+            "modules": [
+              {"id": "m4", "title": "Supervised Learning Algorithms", "description": "Regression, classification, SVMs, decision trees, ensemble methods", "order": 1, "estimatedHours": 35, "prerequisites": ["m1", "m2", "m3"], "resources": [{"type": "course", "title": "ML Algorithms", "url": "https://learn.microsoft.com/en-us/training/", "description": "Machine learning fundamentals"}]},
+              {"id": "m5", "title": "Unsupervised Learning & Clustering", "description": "K-means, DBSCAN, PCA, dimensionality reduction", "order": 2, "estimatedHours": 20, "prerequisites": ["m4"], "resources": [{"type": "video", "title": "Unsupervised ML", "url": "https://youtube.com/watch?v=unsup1", "description": "Unsupervised learning"}]},
+              {"id": "m6", "title": "Model Evaluation & Feature Engineering", "description": "Cross-validation, hyperparameter tuning, feature selection, pipelines", "order": 3, "estimatedHours": 22, "prerequisites": ["m4"], "resources": [{"type": "article", "title": "Feature Engineering", "url": "https://scikit-learn.org/stable/", "description": "Scikit-learn documentation"}]}
+            ]
+          },
+          {
+            "id": "s3", "name": "Deep Learning & Production ML", "description": "Neural networks and deploying ML at scale", "order": 3,
+            "modules": [
+              {"id": "m7", "title": "Deep Learning with TensorFlow & PyTorch", "description": "Neural networks, CNNs, RNNs, transformers", "order": 1, "estimatedHours": 40, "prerequisites": ["m4", "m6"], "resources": [{"type": "course", "title": "Deep Learning", "url": "https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/", "description": "MIT deep learning"}]},
+              {"id": "m8", "title": "Natural Language Processing", "description": "Text preprocessing, embeddings, BERT, GPT fine-tuning", "order": 2, "estimatedHours": 30, "prerequisites": ["m7"], "resources": [{"type": "video", "title": "NLP Course", "url": "https://youtube.com/watch?v=nlp1", "description": "NLP with transformers"}]},
+              {"id": "m9", "title": "MLOps & Model Deployment", "description": "Model serving, A/B testing, monitoring, MLflow, Docker", "order": 3, "estimatedHours": 25, "prerequisites": ["m7"], "resources": [{"type": "course", "title": "MLOps Guide", "url": "https://learn.microsoft.com/en-us/training/", "description": "MLOps best practices"}]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ra-004",
+      "description": "Full-stack developer targeting MERN stack",
+      "expected_category": "fullstack",
+      "expected_topic_keywords": ["React", "Node.js", "MongoDB", "Express", "full-stack", "deployment"],
+      "pre_generated_roadmap": {
+        "title": "MERN Full-Stack Developer Roadmap",
+        "description": "Master the complete MERN stack for modern web applications.",
+        "stages": [
+          {
+            "id": "s1", "name": "Frontend Foundations", "description": "Build responsive user interfaces", "order": 1,
+            "modules": [
+              {"id": "m1", "title": "React.js Fundamentals", "description": "Components, hooks, context, routing", "order": 1, "estimatedHours": 30, "prerequisites": [], "resources": [{"type": "video", "title": "React Tutorial", "url": "https://youtube.com/watch?v=react1", "description": "React fundamentals"}]},
+              {"id": "m2", "title": "CSS & Responsive Design", "description": "Flexbox, Grid, Tailwind CSS, responsive patterns", "order": 2, "estimatedHours": 18, "prerequisites": [], "resources": [{"type": "course", "title": "CSS Mastery", "url": "https://developer.mozilla.org/en-US/docs/Web/CSS", "description": "CSS documentation"}]},
+              {"id": "m3", "title": "State Management & API Integration", "description": "React Query, Axios, SWR, form handling", "order": 3, "estimatedHours": 20, "prerequisites": ["m1"], "resources": [{"type": "article", "title": "React Query Guide", "url": "https://tanstack.com/query", "description": "Data fetching"}]}
+            ]
+          },
+          {
+            "id": "s2", "name": "Backend & Database", "description": "Server-side development with Node.js and MongoDB", "order": 2,
+            "modules": [
+              {"id": "m4", "title": "Node.js & Express API Development", "description": "REST APIs, middleware, error handling, validation", "order": 1, "estimatedHours": 28, "prerequisites": ["m1"], "resources": [{"type": "video", "title": "Express Tutorial", "url": "https://youtube.com/watch?v=express1", "description": "Express API development"}]},
+              {"id": "m5", "title": "MongoDB & Mongoose", "description": "Schema design, aggregation, indexing, transactions", "order": 2, "estimatedHours": 22, "prerequisites": ["m4"], "resources": [{"type": "course", "title": "MongoDB University", "url": "https://university.mongodb.com/", "description": "Official MongoDB courses"}]},
+              {"id": "m6", "title": "Authentication & Authorization", "description": "JWT, bcrypt, OAuth, role-based access control", "order": 3, "estimatedHours": 18, "prerequisites": ["m4"], "resources": [{"type": "video", "title": "Auth Guide", "url": "https://youtube.com/watch?v=auth1", "description": "Authentication patterns"}]}
+            ]
+          },
+          {
+            "id": "s3", "name": "Full-Stack Integration & Deployment", "description": "Connect frontend and backend, deploy to production", "order": 3,
+            "modules": [
+              {"id": "m7", "title": "Full-Stack Project Architecture", "description": "Monorepo setup, shared types, API contracts, environment management", "order": 1, "estimatedHours": 20, "prerequisites": ["m3", "m5", "m6"], "resources": [{"type": "article", "title": "Full-Stack Architecture", "url": "https://dev.to/fullstack", "description": "Architecture patterns"}]},
+              {"id": "m8", "title": "Testing Full-Stack Applications", "description": "Unit, integration, and E2E testing across the stack", "order": 2, "estimatedHours": 22, "prerequisites": ["m7"], "resources": [{"type": "video", "title": "Full-Stack Testing", "url": "https://youtube.com/watch?v=test1", "description": "Testing strategies"}]},
+              {"id": "m9", "title": "Deployment & CI/CD", "description": "Docker, Vercel, AWS, GitHub Actions, monitoring", "order": 3, "estimatedHours": 20, "prerequisites": ["m7"], "resources": [{"type": "course", "title": "Deployment Guide", "url": "https://learn.microsoft.com/en-us/training/", "description": "Cloud deployment"}]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ra-005-bad",
+      "description": "BAD ROADMAP: Frontend role but has off-topic backend/DevOps modules",
+      "expected_category": "frontend",
+      "expected_topic_keywords": ["React", "CSS", "JavaScript", "UI"],
+      "is_intentionally_bad": true,
+      "expected_issues": ["off-topic modules", "missing resources"],
+      "pre_generated_roadmap": {
+        "title": "Frontend Developer Roadmap",
+        "description": "Learn frontend development.",
+        "stages": [
+          {
+            "id": "s1", "name": "Kubernetes & Docker", "description": "Container orchestration", "order": 1,
+            "modules": [
+              {"id": "m1", "title": "Kubernetes Cluster Management", "description": "Setting up K8s clusters in production", "order": 1, "estimatedHours": 40, "prerequisites": [], "resources": []},
+              {"id": "m2", "title": "Terraform Infrastructure as Code", "description": "Managing cloud infrastructure with Terraform", "order": 2, "estimatedHours": 35, "prerequisites": [], "resources": []},
+              {"id": "m3", "title": "Linux System Administration", "description": "Advanced Linux server management", "order": 3, "estimatedHours": 30, "prerequisites": [], "resources": []}
+            ]
+          },
+          {
+            "id": "s2", "name": "Database Administration", "description": "Database management", "order": 2,
+            "modules": [
+              {"id": "m4", "title": "PostgreSQL DBA Certification", "description": "Database admin certification prep", "order": 1, "estimatedHours": 45, "prerequisites": ["m1"], "resources": []},
+              {"id": "m5", "title": "Oracle Database Tuning", "description": "Enterprise Oracle database optimization", "order": 2, "estimatedHours": 40, "prerequisites": ["m4"], "resources": []},
+              {"id": "m6", "title": "Data Warehousing with Snowflake", "description": "Building data warehouses", "order": 3, "estimatedHours": 35, "prerequisites": ["m4"], "resources": []}
+            ]
+          },
+          {
+            "id": "s3", "name": "Machine Learning", "description": "ML fundamentals", "order": 3,
+            "modules": [
+              {"id": "m7", "title": "TensorFlow Deep Learning", "description": "Neural networks with TensorFlow", "order": 1, "estimatedHours": 50, "prerequisites": ["m4"], "resources": []},
+              {"id": "m8", "title": "Computer Vision with OpenCV", "description": "Image processing and CV", "order": 2, "estimatedHours": 40, "prerequisites": ["m7"], "resources": []},
+              {"id": "m9", "title": "Reinforcement Learning", "description": "RL algorithms and environments", "order": 3, "estimatedHours": 45, "prerequisites": ["m7"], "resources": []}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ra-006-bad",
+      "description": "BAD ROADMAP: Structural issues - too few modules, missing fields, zero hours",
+      "expected_category": "backend",
+      "expected_topic_keywords": ["Node.js", "API", "database"],
+      "is_intentionally_bad": true,
+      "expected_issues": ["too few modules", "zero estimatedHours", "missing description"],
+      "pre_generated_roadmap": {
+        "title": "Backend Roadmap",
+        "description": "Learn backend.",
+        "stages": [
+          {
+            "id": "s1", "name": "Basics", "description": "Start here", "order": 1,
+            "modules": [
+              {"id": "m1", "title": "Something", "description": "", "order": 1, "estimatedHours": 0, "prerequisites": [], "resources": []}
+            ]
+          },
+          {
+            "id": "s2", "name": "More", "description": "Continue", "order": 2,
+            "modules": [
+              {"id": "m2", "title": "Something Else", "description": "", "order": 1, "estimatedHours": 250, "prerequisites": ["m99"], "resources": []}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+
+  "category_classification_cases": [
+    {"input_text": "Experienced React developer with 4 years building responsive web interfaces using TypeScript, Next.js, and Tailwind CSS", "expected_category": "frontend"},
+    {"input_text": "Python backend developer with expertise in Django, Flask, PostgreSQL, and RESTful API design", "expected_category": "backend"},
+    {"input_text": "Full-stack web developer proficient in MERN stack (MongoDB, Express, React, Node.js) with 3 years experience", "expected_category": "fullstack"},
+    {"input_text": "Data scientist skilled in Python, pandas, scikit-learn, TensorFlow, and machine learning model development", "expected_category": "data-science"},
+    {"input_text": "Business analyst with expertise in Tableau, Power BI, SQL reporting, and business intelligence dashboards", "expected_category": "business-analytics"},
+    {"input_text": "DevOps engineer experienced with AWS, Docker, Kubernetes, Terraform, and CI/CD pipeline automation", "expected_category": "devops"},
+    {"input_text": "QA automation engineer with 5 years using Selenium, Cypress, test automation frameworks and quality assurance", "expected_category": "qa"},
+    {"input_text": "Certified PMP project manager with experience in Agile, Scrum, and cross-team delivery management", "expected_category": "project-management"},
+    {"input_text": "Product manager with experience owning product roadmaps, user research, and feature prioritization", "expected_category": "product-management"},
+    {"input_text": "Cybersecurity analyst specializing in penetration testing, vulnerability assessment, and security compliance", "expected_category": "cybersecurity"},
+    {"input_text": "UX/UI designer skilled in Figma, user research, wireframing, and design systems", "expected_category": "design"},
+    {"input_text": "Office administrator with experience in scheduling, email management, and team coordination", "expected_category": "general"}
+  ],
+
+  "validator_agent_cases": [
+    {
+      "id": "va-001", "label": "valid", "context": "Python developer targeting ML Engineer role", "category": "data-science", "source": "hybrid",
+      "roadmap": {
+        "title": "ML Engineer Learning Path", "stages": [
+          {"id": "s1", "name": "Math & Python Foundations", "order": 1, "modules": [
+            {"id": "m1", "title": "Linear Algebra Review", "order": 1, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m2", "title": "Probability and Statistics", "order": 2, "estimatedHours": 25, "prerequisites": ["m1"]},
+            {"id": "m3", "title": "NumPy and Pandas Mastery", "order": 3, "estimatedHours": 15, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "Machine Learning Core", "order": 2, "modules": [
+            {"id": "m4", "title": "Supervised Learning Algorithms", "order": 1, "estimatedHours": 30, "prerequisites": ["m1", "m3"]},
+            {"id": "m5", "title": "Unsupervised Learning", "order": 2, "estimatedHours": 20, "prerequisites": ["m4"]},
+            {"id": "m6", "title": "Model Evaluation Techniques", "order": 3, "estimatedHours": 18, "prerequisites": ["m4"]}
+          ]},
+          {"id": "s3", "name": "Deep Learning & Deployment", "order": 3, "modules": [
+            {"id": "m7", "title": "Neural Networks with TensorFlow", "order": 1, "estimatedHours": 35, "prerequisites": ["m4", "m6"]},
+            {"id": "m8", "title": "NLP with Transformers", "order": 2, "estimatedHours": 28, "prerequisites": ["m7"]},
+            {"id": "m9", "title": "MLOps and Model Serving", "order": 3, "estimatedHours": 22, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-002", "label": "valid", "context": "Junior frontend developer learning React", "category": "frontend", "source": "cv-analysis",
+      "roadmap": {
+        "title": "React Developer Path", "stages": [
+          {"id": "s1", "name": "Web Fundamentals", "order": 1, "modules": [
+            {"id": "m1", "title": "HTML5 & Semantic Markup", "order": 1, "estimatedHours": 15, "prerequisites": []},
+            {"id": "m2", "title": "CSS3 & Responsive Design", "order": 2, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m3", "title": "JavaScript ES6+ Essentials", "order": 3, "estimatedHours": 25, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "React Core", "order": 2, "modules": [
+            {"id": "m4", "title": "React Components & Hooks", "order": 1, "estimatedHours": 30, "prerequisites": ["m3"]},
+            {"id": "m5", "title": "React Router & Navigation", "order": 2, "estimatedHours": 12, "prerequisites": ["m4"]},
+            {"id": "m6", "title": "State Management with Context", "order": 3, "estimatedHours": 18, "prerequisites": ["m4"]}
+          ]},
+          {"id": "s3", "name": "Advanced React Patterns", "order": 3, "modules": [
+            {"id": "m7", "title": "TypeScript with React", "order": 1, "estimatedHours": 22, "prerequisites": ["m4"]},
+            {"id": "m8", "title": "Testing React Applications", "order": 2, "estimatedHours": 20, "prerequisites": ["m7"]},
+            {"id": "m9", "title": "Next.js Server-Side Rendering", "order": 3, "estimatedHours": 25, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-003", "label": "valid", "context": "DevOps engineer learning Kubernetes", "category": "devops", "source": "cv-analysis",
+      "roadmap": {
+        "title": "Kubernetes & Cloud Native Path", "stages": [
+          {"id": "s1", "name": "Container Fundamentals", "order": 1, "modules": [
+            {"id": "m1", "title": "Docker Containerization", "order": 1, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m2", "title": "Container Networking", "order": 2, "estimatedHours": 15, "prerequisites": ["m1"]},
+            {"id": "m3", "title": "Container Security Basics", "order": 3, "estimatedHours": 15, "prerequisites": ["m1"]}
+          ]},
+          {"id": "s2", "name": "Kubernetes Core", "order": 2, "modules": [
+            {"id": "m4", "title": "K8s Architecture & Pods", "order": 1, "estimatedHours": 25, "prerequisites": ["m1"]},
+            {"id": "m5", "title": "Services & Ingress", "order": 2, "estimatedHours": 20, "prerequisites": ["m4"]},
+            {"id": "m6", "title": "ConfigMaps & Secrets", "order": 3, "estimatedHours": 12, "prerequisites": ["m4"]}
+          ]},
+          {"id": "s3", "name": "Production K8s", "order": 3, "modules": [
+            {"id": "m7", "title": "Helm Charts & Package Management", "order": 1, "estimatedHours": 18, "prerequisites": ["m5", "m6"]},
+            {"id": "m8", "title": "Monitoring with Prometheus", "order": 2, "estimatedHours": 20, "prerequisites": ["m7"]},
+            {"id": "m9", "title": "GitOps with ArgoCD", "order": 3, "estimatedHours": 15, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-004", "label": "valid", "context": "Backend developer learning microservices", "category": "backend", "source": "hybrid",
+      "roadmap": {
+        "title": "Microservices Architecture Path", "stages": [
+          {"id": "s1", "name": "Foundations", "order": 1, "modules": [
+            {"id": "m1", "title": "API Design Patterns", "order": 1, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m2", "title": "Database Design", "order": 2, "estimatedHours": 22, "prerequisites": []},
+            {"id": "m3", "title": "Distributed Systems Concepts", "order": 3, "estimatedHours": 25, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "Microservices Core", "order": 2, "modules": [
+            {"id": "m4", "title": "Service Decomposition", "order": 1, "estimatedHours": 20, "prerequisites": ["m1", "m2"]},
+            {"id": "m5", "title": "Inter-Service Communication", "order": 2, "estimatedHours": 25, "prerequisites": ["m4"]},
+            {"id": "m6", "title": "Data Management Patterns", "order": 3, "estimatedHours": 22, "prerequisites": ["m4"]}
+          ]},
+          {"id": "s3", "name": "Production Readiness", "order": 3, "modules": [
+            {"id": "m7", "title": "Service Mesh & Observability", "order": 1, "estimatedHours": 20, "prerequisites": ["m5"]},
+            {"id": "m8", "title": "Resilience Patterns", "order": 2, "estimatedHours": 18, "prerequisites": ["m5"]},
+            {"id": "m9", "title": "Deployment Strategies", "order": 3, "estimatedHours": 15, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-005", "label": "valid", "context": "QA engineer learning test automation", "category": "qa", "source": "cv-analysis",
+      "roadmap": {
+        "title": "Test Automation Path", "stages": [
+          {"id": "s1", "name": "Testing Foundations", "order": 1, "modules": [
+            {"id": "m1", "title": "Testing Principles & Methodologies", "order": 1, "estimatedHours": 15, "prerequisites": []},
+            {"id": "m2", "title": "Test Case Design Techniques", "order": 2, "estimatedHours": 12, "prerequisites": ["m1"]},
+            {"id": "m3", "title": "JavaScript for Testers", "order": 3, "estimatedHours": 20, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "Automation Frameworks", "order": 2, "modules": [
+            {"id": "m4", "title": "Selenium WebDriver", "order": 1, "estimatedHours": 25, "prerequisites": ["m3"]},
+            {"id": "m5", "title": "Cypress E2E Testing", "order": 2, "estimatedHours": 20, "prerequisites": ["m3"]},
+            {"id": "m6", "title": "API Testing with Postman", "order": 3, "estimatedHours": 15, "prerequisites": ["m1"]}
+          ]},
+          {"id": "s3", "name": "Advanced QA", "order": 3, "modules": [
+            {"id": "m7", "title": "Performance Testing with JMeter", "order": 1, "estimatedHours": 18, "prerequisites": ["m4"]},
+            {"id": "m8", "title": "CI/CD Test Integration", "order": 2, "estimatedHours": 15, "prerequisites": ["m4", "m5"]},
+            {"id": "m9", "title": "Test Strategy & Reporting", "order": 3, "estimatedHours": 12, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-006-invalid", "label": "invalid", "expected_issue_types": ["structure"],
+      "context": "Frontend developer", "category": "frontend", "source": "cv-analysis",
+      "roadmap": {
+        "title": "Frontend Path", "stages": [
+          {"id": "s1", "name": "Only Stage", "order": 1, "modules": [
+            {"id": "m1", "title": "React Basics", "order": 1, "estimatedHours": 20, "prerequisites": []}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-007-invalid", "label": "invalid", "expected_issue_types": ["time_estimates"],
+      "context": "Backend developer", "category": "backend", "source": "hybrid",
+      "roadmap": {
+        "title": "Backend Path", "stages": [
+          {"id": "s1", "name": "Basics", "order": 1, "modules": [
+            {"id": "m1", "title": "Node.js Intro", "order": 1, "estimatedHours": 0, "prerequisites": []},
+            {"id": "m2", "title": "Express Framework", "order": 2, "estimatedHours": -5, "prerequisites": []},
+            {"id": "m3", "title": "Database Mastery", "order": 3, "estimatedHours": 300, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "Advanced", "order": 2, "modules": [
+            {"id": "m4", "title": "Microservices", "order": 1, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m5", "title": "Docker", "order": 2, "estimatedHours": 15, "prerequisites": []},
+            {"id": "m6", "title": "Kubernetes", "order": 3, "estimatedHours": 25, "prerequisites": []}
+          ]},
+          {"id": "s3", "name": "Expert", "order": 3, "modules": [
+            {"id": "m7", "title": "System Design", "order": 1, "estimatedHours": 30, "prerequisites": []},
+            {"id": "m8", "title": "Cloud Architecture", "order": 2, "estimatedHours": 25, "prerequisites": []},
+            {"id": "m9", "title": "Performance Tuning", "order": 3, "estimatedHours": 20, "prerequisites": []}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-008-invalid", "label": "invalid", "expected_issue_types": ["prerequisites"],
+      "context": "Data scientist", "category": "data-science", "source": "cv-analysis",
+      "roadmap": {
+        "title": "Data Science Path", "stages": [
+          {"id": "s1", "name": "Foundations", "order": 1, "modules": [
+            {"id": "m1", "title": "Python Basics", "order": 1, "estimatedHours": 20, "prerequisites": ["m_nonexistent"]},
+            {"id": "m2", "title": "Statistics", "order": 2, "estimatedHours": 25, "prerequisites": ["m_ghost"]},
+            {"id": "m3", "title": "Data Wrangling", "order": 3, "estimatedHours": 18, "prerequisites": ["m1"]}
+          ]},
+          {"id": "s2", "name": "ML Core", "order": 2, "modules": [
+            {"id": "m4", "title": "Supervised Learning", "order": 1, "estimatedHours": 30, "prerequisites": ["m3"]},
+            {"id": "m5", "title": "Unsupervised Learning", "order": 2, "estimatedHours": 20, "prerequisites": ["m4"]},
+            {"id": "m6", "title": "Model Evaluation", "order": 3, "estimatedHours": 15, "prerequisites": ["m4"]}
+          ]},
+          {"id": "s3", "name": "Advanced", "order": 3, "modules": [
+            {"id": "m7", "title": "Deep Learning", "order": 1, "estimatedHours": 35, "prerequisites": ["m4"]},
+            {"id": "m8", "title": "NLP", "order": 2, "estimatedHours": 25, "prerequisites": ["m7"]},
+            {"id": "m9", "title": "Deployment", "order": 3, "estimatedHours": 20, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-009-invalid", "label": "invalid", "expected_issue_types": ["duplicates"],
+      "context": "Frontend developer", "category": "frontend", "source": "cv-analysis",
+      "roadmap": {
+        "title": "Frontend Path", "stages": [
+          {"id": "s1", "name": "Basics", "order": 1, "modules": [
+            {"id": "m1", "title": "React Components", "order": 1, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m2", "title": "React Components", "order": 2, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m3", "title": "CSS Styling", "order": 3, "estimatedHours": 15, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "Intermediate", "order": 2, "modules": [
+            {"id": "m4", "title": "State Management", "order": 1, "estimatedHours": 22, "prerequisites": ["m1"]},
+            {"id": "m5", "title": "React Components", "order": 2, "estimatedHours": 18, "prerequisites": ["m4"]},
+            {"id": "m6", "title": "Routing", "order": 3, "estimatedHours": 12, "prerequisites": ["m4"]}
+          ]},
+          {"id": "s3", "name": "Advanced", "order": 3, "modules": [
+            {"id": "m7", "title": "Testing", "order": 1, "estimatedHours": 20, "prerequisites": ["m4"]},
+            {"id": "m8", "title": "Performance", "order": 2, "estimatedHours": 18, "prerequisites": ["m7"]},
+            {"id": "m9", "title": "Deployment", "order": 3, "estimatedHours": 15, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    },
+    {
+      "id": "va-010-invalid", "label": "invalid", "expected_issue_types": ["progression"],
+      "context": "Backend developer", "category": "backend", "source": "hybrid",
+      "roadmap": {
+        "title": "Backend Path", "stages": [
+          {"id": "s1", "name": "Advanced Distributed Systems", "order": 3, "modules": [
+            {"id": "m1", "title": "Microservices at Scale", "order": 1, "estimatedHours": 35, "prerequisites": []},
+            {"id": "m2", "title": "Event Sourcing & CQRS", "order": 2, "estimatedHours": 30, "prerequisites": []},
+            {"id": "m3", "title": "Kubernetes Orchestration", "order": 3, "estimatedHours": 28, "prerequisites": []}
+          ]},
+          {"id": "s2", "name": "Basics", "order": 1, "modules": [
+            {"id": "m4", "title": "HTTP & REST Fundamentals", "order": 1, "estimatedHours": 15, "prerequisites": []},
+            {"id": "m5", "title": "Node.js Introduction", "order": 2, "estimatedHours": 20, "prerequisites": []},
+            {"id": "m6", "title": "Basic SQL Queries", "order": 3, "estimatedHours": 12, "prerequisites": []}
+          ]},
+          {"id": "s3", "name": "Intermediate", "order": 2, "modules": [
+            {"id": "m7", "title": "API Design Patterns", "order": 1, "estimatedHours": 22, "prerequisites": ["m4"]},
+            {"id": "m8", "title": "Database Optimization", "order": 2, "estimatedHours": 20, "prerequisites": ["m6"]},
+            {"id": "m9", "title": "Authentication Systems", "order": 3, "estimatedHours": 18, "prerequisites": ["m7"]}
+          ]}
+        ]
+      }
+    }
+  ],
+
+  "rag_chat_agent_cases": [
+    {
+      "id": "rc-001",
+      "question": "What are the main skill gaps between my CV and the job description?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Software engineer with 3 years experience in Python, Django, basic SQL queries, and Git version control. Built small web applications and REST APIs for internal tools."},
+        {"type": "jd", "source": "job-posting.pdf", "text": "Requirements: 5+ years Python experience, advanced SQL and database optimization, AWS cloud services, Docker containerization, microservices architecture, CI/CD pipeline experience."}
+      ],
+      "pre_generated_answer": "Based on your CV and the job description, there are several skill gaps to address. While you have Python and SQL experience, the role requires 5+ years of Python experience compared to your 3 years. Key gaps include: AWS cloud services (not mentioned in your CV), Docker containerization, microservices architecture, and CI/CD pipeline experience. Your SQL skills are at a basic level but the role requires advanced database optimization. I recommend focusing on AWS, Docker, and deepening your Python and SQL expertise.",
+      "expected_keywords_in_answer": ["AWS", "Docker", "SQL", "Python", "microservices", "gap"],
+      "faithfulness_context_keywords": ["Python", "Django", "SQL", "AWS", "Docker", "microservices", "CI/CD", "5+ years", "3 years"],
+      "is_answerable": true
+    },
+    {
+      "id": "rc-002",
+      "question": "Does the candidate have the required educational qualifications?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Education: Bachelor of Science in Computer Science from University of Colombo (2019). AWS Certified Cloud Practitioner (2022)."},
+        {"type": "jd", "source": "job-posting.pdf", "text": "Required Qualifications: Bachelor's degree in Computer Science or related field. AWS certification preferred."}
+      ],
+      "pre_generated_answer": "Yes, the candidate meets the educational qualifications. They hold a Bachelor of Science in Computer Science from the University of Colombo, which satisfies the requirement for a Bachelor's degree in CS or related field. Additionally, they have an AWS Certified Cloud Practitioner certification, which aligns with the preferred AWS certification mentioned in the job description.",
+      "expected_keywords_in_answer": ["Bachelor", "Computer Science", "AWS", "meets", "certification"],
+      "faithfulness_context_keywords": ["Bachelor of Science", "Computer Science", "University of Colombo", "AWS Certified", "Cloud Practitioner"],
+      "is_answerable": true
+    },
+    {
+      "id": "rc-003",
+      "question": "What relevant experience does the candidate have for this role?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Work Experience: 2 years as Junior Developer at TechCorp building React frontends. 1 year as Full-Stack Developer at StartupXYZ working with Node.js, MongoDB, and React. Led a team of 3 developers on a client project."},
+        {"type": "jd", "source": "job-posting.pdf", "text": "Looking for a Senior Full-Stack Developer with 5+ years experience in React, Node.js, and database management. Must have leadership experience managing teams of 5+."}
+      ],
+      "pre_generated_answer": "The candidate has 3 years of relevant experience across two positions. At TechCorp, they spent 2 years on React frontend development. At StartupXYZ, they gained 1 year of full-stack experience with Node.js, MongoDB, and React. They also have some leadership experience, having led a team of 3 developers. However, the role requires 5+ years of experience and leadership of teams of 5+, so there are gaps in both total experience and leadership scope.",
+      "expected_keywords_in_answer": ["React", "Node.js", "3 years", "leadership", "gap", "5+ years"],
+      "faithfulness_context_keywords": ["TechCorp", "StartupXYZ", "React", "Node.js", "MongoDB", "team of 3", "5+ years"],
+      "is_answerable": true
+    },
+    {
+      "id": "rc-004",
+      "question": "What programming languages should I learn to improve my chances?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Skills: JavaScript, HTML, CSS, basic Python. Familiar with React and jQuery."},
+        {"type": "jd", "source": "job-posting.pdf", "text": "Required: TypeScript, React with TypeScript, Node.js backend development, SQL database management, GraphQL API design."}
+      ],
+      "pre_generated_answer": "Based on the job requirements compared to your current skills, you should focus on learning TypeScript as it is a core requirement and builds on your JavaScript knowledge. You should also learn Node.js for backend development, SQL for database management, and GraphQL for API design. While you know React, the role specifically requires React with TypeScript, so strengthening that combination would be beneficial.",
+      "expected_keywords_in_answer": ["TypeScript", "Node.js", "SQL", "GraphQL"],
+      "faithfulness_context_keywords": ["JavaScript", "Python", "React", "TypeScript", "Node.js", "SQL", "GraphQL"],
+      "is_answerable": true
+    },
+    {
+      "id": "rc-005",
+      "question": "How does the candidate's database experience compare to requirements?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Database experience: Used MongoDB for 2 projects, basic CRUD operations with Mongoose. Familiar with SQL SELECT queries."},
+        {"type": "jd", "source": "job-posting.pdf", "text": "Database Requirements: Expert-level PostgreSQL including query optimization, indexing strategies, and stored procedures. Experience with Redis caching and database replication."}
+      ],
+      "pre_generated_answer": "There is a significant gap between the candidate's database experience and the job requirements. The candidate has basic MongoDB experience with CRUD operations and familiarity with simple SQL queries. However, the role requires expert-level PostgreSQL knowledge including query optimization, indexing strategies, and stored procedures. Additionally, the role requires Redis caching and database replication experience, which are not present in the candidate's CV. This represents one of the larger skill gaps.",
+      "expected_keywords_in_answer": ["MongoDB", "PostgreSQL", "gap", "optimization", "Redis", "basic"],
+      "faithfulness_context_keywords": ["MongoDB", "CRUD", "Mongoose", "SQL", "PostgreSQL", "optimization", "indexing", "Redis", "replication"],
+      "is_answerable": true
+    },
+    {
+      "id": "rc-006",
+      "question": "What certifications does the candidate hold?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Certifications: AWS Certified Developer Associate (2023), Google Analytics Individual Qualification (2022), Scrum Master Certified (2021)."}
+      ],
+      "pre_generated_answer": "According to the CV, the candidate holds three certifications: AWS Certified Developer Associate obtained in 2023, Google Analytics Individual Qualification from 2022, and Scrum Master Certified from 2021. These certifications demonstrate competency in cloud development, analytics, and agile project management.",
+      "expected_keywords_in_answer": ["AWS", "Google Analytics", "Scrum Master", "three", "certification"],
+      "faithfulness_context_keywords": ["AWS Certified Developer", "Google Analytics", "Scrum Master", "2023", "2022", "2021"],
+      "is_answerable": true
+    },
+    {
+      "id": "rc-007",
+      "question": "What is the weather forecast for tomorrow?",
+      "context_documents": [
+        {"type": "cv", "source": "resume.pdf", "text": "Full-stack developer with 5 years of experience in web application development using modern JavaScript frameworks."}
+      ],
+      "pre_generated_answer": "I don't have information about the weather forecast in the provided documents. The context only contains career-related information from the candidate's CV. For weather information, please check a weather service or website.",
+      "expected_keywords_in_answer": ["don't have", "weather", "not"],
+      "faithfulness_context_keywords": [],
+      "is_answerable": false
+    },
+    {
+      "id": "rc-008",
+      "question": "What is the company's stock price?",
+      "context_documents": [
+        {"type": "jd", "source": "job-posting.pdf", "text": "We are hiring a Senior Software Engineer. Requirements include 5+ years experience, React proficiency, and strong communication skills. Benefits: competitive salary, health insurance, remote work."}
+      ],
+      "pre_generated_answer": "I cannot find information about the company's stock price in the provided documents. The job description contains information about the role requirements and benefits but does not include any financial or stock market data.",
+      "expected_keywords_in_answer": ["cannot find", "stock", "not"],
+      "faithfulness_context_keywords": [],
+      "is_answerable": false
+    }
+  ]
+}

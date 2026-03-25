@@ -3,6 +3,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import axios from "axios";
+import { createLangfuseHandler } from "../utils/langfuse";
 
 export interface ValidationResult {
     valid: boolean;
@@ -81,13 +82,15 @@ Respond with JSON only: either {{ "valid": true }} or {{ "valid": false, "issues
             new StringOutputParser(),
         ]);
 
+        const lfHandler = createLangfuseHandler({ traceName: "validator-validate-roadmap", tags: ["validator"], metadata: { category } });
         try {
             const response = (await chain.invoke({
                 context,
                 category,
                 source,
                 roadmapJson: JSON.stringify(roadmapData, null, 2),
-            })) as string;
+            }, { callbacks: lfHandler ? [lfHandler] : [] })) as string;
+            await lfHandler?.shutdownAsync();
 
             const parsed = this.parseValidationResponse(response);
             if (parsed.valid === false && parsed.issues?.length === 0 && !parsed.feedback) {

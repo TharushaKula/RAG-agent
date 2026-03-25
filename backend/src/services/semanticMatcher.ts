@@ -4,6 +4,7 @@ import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableSequence } from "@langchain/core/runnables";
+import { createLangfuseHandler } from "../utils/langfuse";
 
 export interface Requirement {
     text: string;
@@ -128,7 +129,9 @@ Response format:
         ]);
 
         const chain = RunnableSequence.from([prompt, this.llm!, new StringOutputParser()]);
-        const response = await chain.invoke({ jdText: jdText.slice(0, 6000) });
+        const lfHandler = createLangfuseHandler({ traceName: "matcher-extract-requirements", tags: ["matcher"] });
+        const response = await chain.invoke({ jdText: jdText.slice(0, 6000) }, { callbacks: lfHandler ? [lfHandler] : [] });
+        await lfHandler?.shutdownAsync();
 
         // Parse JSON from response (handle potential markdown wrapping)
         const jsonStr = response.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
@@ -445,6 +448,18 @@ Response format:
                     }
                 }
 
+                // Level-awareness modifier: detect same-domain but different expertise level.
+                // When the JD asks for "5+ years" / "advanced" / "expert" but the CV says
+                // "basic" / "some exposure" / "1 year", the SBERT cosine sim will be high
+                // (same domain) but the candidate doesn't truly "match".
+                // Apply a penalty to push these into the partial_match zone.
+                if (similarity >= 0.40) {
+                    const levelPenalty = SemanticMatcher.computeLevelPenalty(reqNorm, cvNorm);
+                    if (levelPenalty > 0) {
+                        similarity = similarity * (1.0 - levelPenalty);
+                    }
+                }
+
                 if (similarity > bestSimilarity) {
                     bestSimilarity = similarity;
                     bestSection = { text: cvSection.text, type: cvSection.type };
@@ -462,10 +477,12 @@ Response format:
             matchedSections.sort((a, b) => b.similarity - a.similarity);
 
             // Determine match status
+            // Thresholds widened to give partial_match a wider band (0.38–0.58)
+            // Calibrated against SBERT avg positive similarity (~0.60)
             let status: RequirementMatch['status'] = 'not_matched';
-            if (bestSimilarity >= 0.75) {
+            if (bestSimilarity >= 0.58) {
                 status = 'matched';
-            } else if (bestSimilarity >= this.similarityThreshold) {
+            } else if (bestSimilarity >= 0.38) {
                 status = 'partially_matched';
             }
 
@@ -610,7 +627,9 @@ ${jdText.slice(0, 2000)}`
         ]);
 
         const chain = RunnableSequence.from([prompt, this.llm!, new StringOutputParser()]);
-        const response = await chain.invoke({});
+        const lfRecHandler = createLangfuseHandler({ traceName: "matcher-generate-recommendations", tags: ["matcher"] });
+        const response = await chain.invoke({}, { callbacks: lfRecHandler ? [lfRecHandler] : [] });
+        await lfRecHandler?.shutdownAsync();
 
         const jsonStr = response.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(jsonStr);
@@ -673,5 +692,69 @@ ${jdText.slice(0, 2000)}`
         }
 
         return recommendations.slice(0, 6);
+    }
+
+    // ──────────────────────────────────────────────
+    //  5. LEVEL-AWARENESS PENALTY
+    // ──────────────────────────────────────────────
+
+    /**
+     * Detect when two texts share the same domain but differ in expertise level.
+     * Returns a penalty between 0 (no mismatch) and 0.25 (strong mismatch).
+     *
+     * Examples where penalty applies:
+     *   JD: "5+ years of backend development" vs CV: "1 year internship"
+     *   JD: "Expert-level database admin" vs CV: "Basic SQL queries"
+     *   JD: "Advanced Docker + Kubernetes" vs CV: "Basic Docker for local dev"
+     */
+    static computeLevelPenalty(jdNorm: string, cvNorm: string): number {
+        let penalty = 0;
+
+        // 1. Experience-year gap detection
+        const yearPattern = /(\d+)\+?\s*years?/g;
+        const jdYears = [...jdNorm.matchAll(yearPattern)].map(m => parseInt(m[1]));
+        const cvYears = [...cvNorm.matchAll(yearPattern)].map(m => parseInt(m[1]));
+
+        if (jdYears.length > 0 && cvYears.length > 0) {
+            const jdMax = Math.max(...jdYears);
+            const cvMax = Math.max(...cvYears);
+            if (jdMax > 0 && cvMax < jdMax) {
+                // Larger gap = bigger penalty, capped at 0.20
+                const gap = (jdMax - cvMax) / jdMax;
+                penalty = Math.max(penalty, gap * 0.20);
+            }
+        } else if (jdYears.length > 0 && jdYears[0] >= 3 && cvYears.length === 0) {
+            // JD requires years but CV doesn't mention any → moderate penalty
+            const hasExperienceSignal = /\b(experience|worked|built|developed|managed|led)\b/.test(cvNorm);
+            if (!hasExperienceSignal) {
+                penalty = Math.max(penalty, 0.12);
+            }
+        }
+
+        // 2. Expertise-level word mismatch
+        const highLevelWords = /\b(expert|advanced|strong|proficien|extensive|deep|senior|lead|architect|principal)\b/;
+        const lowLevelWords = /\b(basic|beginner|some exposure|introduct|fundament|familiar|personal project|university|coursework|online course|learning|junior|intern)\b/;
+
+        const jdIsHigh = highLevelWords.test(jdNorm);
+        const cvIsLow = lowLevelWords.test(cvNorm);
+
+        if (jdIsHigh && cvIsLow) {
+            // JD asks for advanced, CV shows beginner → penalty
+            penalty = Math.max(penalty, 0.18);
+        }
+
+        // 3. Scale mismatch (production vs personal, large vs small)
+        const productionWords = /\b(production|enterprise|at scale|large-scale|distributed|team of \d{2,}|multiple)\b/;
+        const personalWords = /\b(personal project|small|capstone|assignment|hobby|tutorial|toy|demo)\b/;
+
+        const jdIsProduction = productionWords.test(jdNorm);
+        const cvIsPersonal = personalWords.test(cvNorm);
+
+        if (jdIsProduction && cvIsPersonal) {
+            penalty = Math.max(penalty, 0.15);
+        }
+
+        // Cap total penalty at 0.25 (don't push match → no_match, just match → partial)
+        return Math.min(penalty, 0.25);
     }
 }

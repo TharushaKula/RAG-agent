@@ -58,11 +58,8 @@ app.use("/api/learning", learningRoutes);
 import roadmapRoutes from "./routes/roadmapRoutes";
 app.use("/api/roadmap", roadmapRoutes);
 
-import podcastsRoutes from "./routes/podcastsRoutes";
-app.use("/api/podcasts", podcastsRoutes);
-
 app.get("/", (req, res) => {
-    res.send("Skill Bridge Backend Running");
+    res.send("RAG Agent Backend Running");
 });
 
 // Socket.IO Handling

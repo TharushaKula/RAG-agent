@@ -1,0 +1,110 @@
+{
+  "timestamp": "2026-03-24T20:15:28.649812",
+  "model_dir": "./custom-sbert-model",
+  "similarity_threshold": 0.38,
+  "match_threshold": 0.58,
+  "results": [
+    {
+      "component": "SBERT Embedding Model",
+      "total_queries": 15,
+      "precision_at_1": 1.0,
+      "recall_at_1": 1.0,
+      "f1_score": 1.0,
+      "mrr": 1.0,
+      "accuracy": 1.0,
+      "avg_positive_similarity": 0.5956,
+      "avg_negative_similarity": 0.1066,
+      "separation_gap": 0.489,
+      "final_training_loss": 0.05,
+      "final_validation_loss": 0.13904931926763092
+    },
+    {
+      "component": "Semantic Match Analyzer",
+      "total_pairs": 45,
+      "correct_predictions": 32,
+      "overall_accuracy": 0.7111,
+      "macro_precision": 0.7196,
+      "macro_recall": 0.7111,
+      "macro_f1_score": 0.7007,
+      "average_loss": 0.2084,
+      "binary_precision": 0.875,
+      "binary_recall": 0.9333,
+      "binary_f1": 0.9032,
+      "per_class": {
+        "match": {
+          "true_positives": 14,
+          "false_positives": 2,
+          "false_negatives": 6,
+          "precision": 0.875,
+          "recall": 0.7,
+          "f1_score": 0.7778
+        },
+        "partial_match": {
+          "true_positives": 7,
+          "false_positives": 9,
+          "false_negatives": 3,
+          "precision": 0.4375,
+          "recall": 0.7,
+          "f1_score": 0.5385
+        },
+        "no_match": {
+          "true_positives": 11,
+          "false_positives": 2,
+          "false_negatives": 4,
+          "precision": 0.8462,
+          "recall": 0.7333,
+          "f1_score": 0.7857
+        }
+      },
+      "confusion_matrix": {
+        "predictions": {
+          "match": 16,
+          "partial_match": 16,
+          "no_match": 13
+        },
+        "ground_truths": {
+          "match": 20,
+          "no_match": 15,
+          "partial_match": 10
+        }
+      }
+    },
+    {
+      "component": "Requirement Extraction",
+      "total_cases": 3,
+      "avg_precision": 0.7778,
+      "avg_recall": 1.0,
+      "avg_f1_score": 0.8667,
+      "type_classification_accuracy": 0.7692,
+      "case_details": [
+        {
+          "case_index": 0,
+          "expected_count": 5,
+          "predicted_count": 5,
+          "true_positives": 5,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1_score": 1.0
+        },
+        {
+          "case_index": 1,
+          "expected_count": 4,
+          "predicted_count": 6,
+          "true_positives": 4,
+          "precision": 0.6667,
+          "recall": 1.0,
+          "f1_score": 0.8
+        },
+        {
+          "case_index": 2,
+          "expected_count": 4,
+          "predicted_count": 6,
+          "true_positives": 4,
+          "precision": 0.6667,
+          "recall": 1.0,
+          "f1_score": 0.8
+        }
+      ]
+    }
+  ]
+}

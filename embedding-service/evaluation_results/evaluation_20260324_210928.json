@@ -1,0 +1,355 @@
+{
+  "timestamp": "2026-03-24T21:09:28.082216",
+  "model_dir": "./custom-sbert-model",
+  "similarity_threshold": 0.38,
+  "match_threshold": 0.58,
+  "results": [
+    {
+      "component": "SBERT Embedding Model",
+      "total_queries": 15,
+      "precision_at_1": 1.0,
+      "recall_at_1": 1.0,
+      "f1_score": 1.0,
+      "mrr": 1.0,
+      "accuracy": 1.0,
+      "avg_positive_similarity": 0.5956,
+      "avg_negative_similarity": 0.1066,
+      "separation_gap": 0.489,
+      "final_training_loss": 0.05,
+      "final_validation_loss": 0.13904931926763092
+    },
+    {
+      "component": "Semantic Match Analyzer",
+      "total_pairs": 45,
+      "correct_predictions": 32,
+      "overall_accuracy": 0.7111,
+      "macro_precision": 0.7196,
+      "macro_recall": 0.7111,
+      "macro_f1_score": 0.7007,
+      "average_loss": 0.2084,
+      "binary_precision": 0.875,
+      "binary_recall": 0.9333,
+      "binary_f1": 0.9032,
+      "per_class": {
+        "match": {
+          "true_positives": 14,
+          "false_positives": 2,
+          "false_negatives": 6,
+          "precision": 0.875,
+          "recall": 0.7,
+          "f1_score": 0.7778
+        },
+        "partial_match": {
+          "true_positives": 7,
+          "false_positives": 9,
+          "false_negatives": 3,
+          "precision": 0.4375,
+          "recall": 0.7,
+          "f1_score": 0.5385
+        },
+        "no_match": {
+          "true_positives": 11,
+          "false_positives": 2,
+          "false_negatives": 4,
+          "precision": 0.8462,
+          "recall": 0.7333,
+          "f1_score": 0.7857
+        }
+      },
+      "confusion_matrix": {
+        "predictions": {
+          "match": 16,
+          "partial_match": 16,
+          "no_match": 13
+        },
+        "ground_truths": {
+          "match": 20,
+          "no_match": 15,
+          "partial_match": 10
+        }
+      }
+    },
+    {
+      "component": "Requirement Extraction",
+      "total_cases": 3,
+      "avg_precision": 0.7778,
+      "avg_recall": 1.0,
+      "avg_f1_score": 0.8667,
+      "type_classification_accuracy": 0.7692,
+      "case_details": [
+        {
+          "case_index": 0,
+          "expected_count": 5,
+          "predicted_count": 5,
+          "true_positives": 5,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1_score": 1.0
+        },
+        {
+          "case_index": 1,
+          "expected_count": 4,
+          "predicted_count": 6,
+          "true_positives": 4,
+          "precision": 0.6667,
+          "recall": 1.0,
+          "f1_score": 0.8
+        },
+        {
+          "case_index": 2,
+          "expected_count": 4,
+          "predicted_count": 6,
+          "true_positives": 4,
+          "precision": 0.6667,
+          "recall": 1.0,
+          "f1_score": 0.8
+        }
+      ]
+    },
+    {
+      "component": "Roadmap Agent",
+      "total_cases": 6,
+      "category_cases": 12,
+      "avg_structural_validity": 0.8519,
+      "avg_topic_coverage": 0.6667,
+      "avg_progression_score": 0.6667,
+      "category_accuracy": 0.5833,
+      "avg_resource_quality": 0.6667,
+      "overall_accuracy": 0.687,
+      "avg_precision": 0.6667,
+      "avg_recall": 0.6667,
+      "avg_f1_score": 0.6667,
+      "average_loss": 0.313,
+      "case_details": [
+        {
+          "case_id": "ra-001",
+          "structural": 1.0,
+          "topic_coverage": 1.0,
+          "progression": 0.6667,
+          "resource_quality": 1.0,
+          "is_bad": false
+        },
+        {
+          "case_id": "ra-002",
+          "structural": 1.0,
+          "topic_coverage": 1.0,
+          "progression": 0.6667,
+          "resource_quality": 1.0,
+          "is_bad": false
+        },
+        {
+          "case_id": "ra-003",
+          "structural": 1.0,
+          "topic_coverage": 1.0,
+          "progression": 1.0,
+          "resource_quality": 1.0,
+          "is_bad": false
+        },
+        {
+          "case_id": "ra-004",
+          "structural": 1.0,
+          "topic_coverage": 1.0,
+          "progression": 1.0,
+          "resource_quality": 1.0,
+          "is_bad": false
+        },
+        {
+          "case_id": "ra-005-bad",
+          "structural": 1.0,
+          "topic_coverage": 0.0,
+          "progression": 0.3333,
+          "resource_quality": 0.0,
+          "is_bad": true
+        },
+        {
+          "case_id": "ra-006-bad",
+          "structural": 0.1111,
+          "topic_coverage": 0.0,
+          "progression": 0.3333,
+          "resource_quality": 0.0,
+          "is_bad": true
+        }
+      ]
+    },
+    {
+      "component": "Roadmap Validator Agent",
+      "total_cases": 10,
+      "correct_predictions": 10,
+      "overall_accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1_score": 1.0,
+      "true_positive_rate": 1.0,
+      "false_positive_rate": 0.0,
+      "issue_detection_rate": 1.0,
+      "average_loss": 0.0,
+      "confusion_matrix": {
+        "TP": 5,
+        "FP": 0,
+        "TN": 5,
+        "FN": 0
+      },
+      "case_details": [
+        {
+          "case_id": "va-001",
+          "true_label": "valid",
+          "predicted_label": "valid",
+          "issues_found": [],
+          "correct": true
+        },
+        {
+          "case_id": "va-002",
+          "true_label": "valid",
+          "predicted_label": "valid",
+          "issues_found": [],
+          "correct": true
+        },
+        {
+          "case_id": "va-003",
+          "true_label": "valid",
+          "predicted_label": "valid",
+          "issues_found": [],
+          "correct": true
+        },
+        {
+          "case_id": "va-004",
+          "true_label": "valid",
+          "predicted_label": "valid",
+          "issues_found": [],
+          "correct": true
+        },
+        {
+          "case_id": "va-005",
+          "true_label": "valid",
+          "predicted_label": "valid",
+          "issues_found": [],
+          "correct": true
+        },
+        {
+          "case_id": "va-006-invalid",
+          "true_label": "invalid",
+          "predicted_label": "invalid",
+          "issues_found": [
+            "structure"
+          ],
+          "correct": true
+        },
+        {
+          "case_id": "va-007-invalid",
+          "true_label": "invalid",
+          "predicted_label": "invalid",
+          "issues_found": [
+            "time_estimates"
+          ],
+          "correct": true
+        },
+        {
+          "case_id": "va-008-invalid",
+          "true_label": "invalid",
+          "predicted_label": "invalid",
+          "issues_found": [
+            "prerequisites"
+          ],
+          "correct": true
+        },
+        {
+          "case_id": "va-009-invalid",
+          "true_label": "invalid",
+          "predicted_label": "invalid",
+          "issues_found": [
+            "duplicates"
+          ],
+          "correct": true
+        },
+        {
+          "case_id": "va-010-invalid",
+          "true_label": "invalid",
+          "predicted_label": "invalid",
+          "issues_found": [
+            "progression"
+          ],
+          "correct": true
+        }
+      ]
+    },
+    {
+      "component": "RAG Chat Agent",
+      "total_cases": 8,
+      "avg_answer_relevance": 0.6522,
+      "avg_faithfulness": 0.8101,
+      "avg_completeness": 0.9583,
+      "answerability_accuracy": 0.875,
+      "overall_accuracy": 0.8239,
+      "avg_precision": 0.8101,
+      "avg_recall": 0.9583,
+      "avg_f1_score": 0.878,
+      "average_loss": 0.1761,
+      "case_details": [
+        {
+          "case_id": "rc-001",
+          "answer_relevance": 0.5364,
+          "faithfulness": 0.8111,
+          "completeness": 1.0,
+          "is_answerable": true,
+          "correctly_handled": false
+        },
+        {
+          "case_id": "rc-002",
+          "answer_relevance": 0.6407,
+          "faithfulness": 0.9219,
+          "completeness": 1.0,
+          "is_answerable": true,
+          "correctly_handled": true
+        },
+        {
+          "case_id": "rc-003",
+          "answer_relevance": 0.7346,
+          "faithfulness": 0.8453,
+          "completeness": 1.0,
+          "is_answerable": true,
+          "correctly_handled": true
+        },
+        {
+          "case_id": "rc-004",
+          "answer_relevance": 0.5734,
+          "faithfulness": 0.7972,
+          "completeness": 1.0,
+          "is_answerable": true,
+          "correctly_handled": true
+        },
+        {
+          "case_id": "rc-005",
+          "answer_relevance": 0.7391,
+          "faithfulness": 0.8473,
+          "completeness": 1.0,
+          "is_answerable": true,
+          "correctly_handled": true
+        },
+        {
+          "case_id": "rc-006",
+          "answer_relevance": 0.7323,
+          "faithfulness": 0.9274,
+          "completeness": 1.0,
+          "is_answerable": true,
+          "correctly_handled": true
+        },
+        {
+          "case_id": "rc-007",
+          "answer_relevance": 0.5264,
+          "faithfulness": 0.6203,
+          "completeness": 0.6667,
+          "is_answerable": false,
+          "correctly_handled": true
+        },
+        {
+          "case_id": "rc-008",
+          "answer_relevance": 0.7344,
+          "faithfulness": 0.7098,
+          "completeness": 1.0,
+          "is_answerable": false,
+          "correctly_handled": true
+        }
+      ]
+    }
+  ]
+}

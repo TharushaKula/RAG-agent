@@ -1,0 +1,4 @@
+Component,Precision,Recall,F1 Score,Accuracy,Loss
+SBERT Embedding Model,1.0,1.0,1.0,1.0,0.13904931926763092
+Semantic Match Analyzer,0.7196,0.7111,0.7007,0.7111,0.2084
+Requirement Extraction,0.7778,1.0,0.8667,0.7692,
