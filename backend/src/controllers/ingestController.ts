@@ -68,7 +68,6 @@ export const ingestData = async (req: Request, res: Response) => {
                 };
 
                 try {
-                    // 1. Scrape for Streaks & Total (Fallback + Repos)
                     const contribUrl = `https://github.com/users/${username}/contributions`;
                     const resVideo = await fetch(contribUrl);
                     if (resVideo.ok) {
@@ -246,7 +245,6 @@ Activity Stats:
                 });
 
                 const splitDocs = await splitter.splitDocuments(docs);
-                // Add userId to all docs
                 splitDocs.forEach(doc => doc.metadata.userId = userId);
                 await vectorStore.addDocuments(splitDocs);
 

@@ -96,13 +96,8 @@ export class RoadmapAgent {
      */
     async determineCategoryWithRAG(text: string, userId?: string): Promise<CategoryResult> {
         try {
-            // Step 1: Retrieve similar documents from vector database
             const similarDocs = await this.fetchSimilarProfiles(text, 5);
-            
-            // Step 2: Build RAG context from similar documents
             const ragContext = this.buildRAGContext(similarDocs);
-            
-            // Step 3: Enhanced AI prompt with RAG context
             const prompt = ChatPromptTemplate.fromMessages([
                 [
                     "system",
@@ -164,9 +159,9 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
                 if (category && /^[a-z0-9-]+$/.test(category)) {
                     // Validate confidence and use fallback if too low
                     if (confidence < 0.6) {
-                        console.log(`⚠️ Low confidence (${confidence.toFixed(2)}) for category: ${category}`);
+                        console.log(`Low confidence (${confidence.toFixed(2)}) for category: ${category}`);
                         const fallbackCategory = this.determineCategoryFromSkills(text);
-                        console.log(`📂 Category: ${fallbackCategory} (fallback due to low confidence)`);
+                        console.log(`Category: ${fallbackCategory} (fallback due to low confidence)`);
                         return {
                             category: fallbackCategory,
                             reason: `Used keyword matching (AI confidence was ${confidence.toFixed(2)})`,
@@ -175,10 +170,7 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
                         };
                     }
 
-                    console.log(`📂 Category: ${category} (confidence: ${confidence.toFixed(2)}) — ${reason}`);
-                    if (similarDocs.length > 0) {
-                        console.log(`🔍 Based on ${similarDocs.length} similar profiles in database`);
-                    }
+                    console.log(`Category: ${category} (confidence: ${confidence.toFixed(2)}) — ${reason}`);
 
                     return {
                         category,
@@ -194,7 +186,7 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
 
         // Fallback to keyword-based classification
         const fallbackCategory = this.determineCategoryFromSkills(text);
-        console.log(`📂 Category: ${fallbackCategory} (keyword-based fallback)`);
+        console.log(`Category: ${fallbackCategory} (keyword-based fallback)`);
         return {
             category: fallbackCategory,
             reason: "Determined by keyword matching",
@@ -276,9 +268,7 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "brief explanatio
         skillGaps?: SkillGap[],
         targetRole?: string
     ): Promise<Roadmap> {
-        console.log(`🎯 Generating CV analysis roadmap for target role: ${targetRole || 'not specified'}`);
-        
-        // Build context with target role for comprehensive analysis
+        console.log(`Generating CV analysis roadmap for target role: ${targetRole || 'not specified'}`);
         const context = this.buildCVContextWithTargetRole(cvText, skillGaps, profile, targetRole);
         
         // Use target role to determine category if provided, otherwise use CV text
@@ -353,7 +343,7 @@ Respond with valid JSON only: {{ "category": "slug", "reason": "one short senten
                 const parsed = JSON.parse(match[0]);
                 const slug = typeof parsed?.category === "string" ? parsed.category.trim().toLowerCase().replace(/\s+/g, "-") : "";
                 if (slug && /^[a-z0-9-]+$/.test(slug)) {
-                    console.log(`📂 Category for "${targetRole}": ${slug}`);
+                    console.log(`Category for "${targetRole}": ${slug}`);
                     return slug;
                 }
             }
@@ -530,7 +520,7 @@ Return ONLY valid JSON, no additional text.`
                 throw new Error(`Ollama service is not available: ${ollamaCheck.error}. Please ensure Ollama is running (ollama serve)`);
             }
 
-            console.log(`🤖 Generating roadmap with AI (category: ${category}, source: ${source})...`);
+            console.log(`Generating roadmap with AI (category: ${category}, source: ${source})...`);
             const lfGenHandler = createLangfuseHandler({ traceName: "roadmap-generate", tags: ["roadmap"], metadata: { category, source } });
 
             // Add timeout wrapper for the chain invocation
@@ -553,7 +543,6 @@ Return ONLY valid JSON, no additional text.`
             // Try to find JSON object
             const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
-                console.error("No JSON found in LLM response. Response:", response.slice(0, 500));
                 throw new Error("No JSON found in LLM response. The AI model may not be responding correctly.");
             }
 
@@ -562,7 +551,6 @@ Return ONLY valid JSON, no additional text.`
                 roadmapData = JSON.parse(jsonMatch[0]);
             } catch (parseError: any) {
                 console.error("JSON parse error:", parseError.message);
-                console.error("Attempted to parse:", jsonMatch[0].slice(0, 500));
                 throw new Error(`Failed to parse JSON from AI response: ${parseError.message}`);
             }
 
@@ -575,7 +563,7 @@ Return ONLY valid JSON, no additional text.`
                 throw new Error("Invalid roadmap structure: no stages generated");
             }
 
-            console.log(`✅ AI generated ${roadmapData.stages.length} stages`);
+            console.log(`AI generated ${roadmapData.stages.length} stages`);
 
             // Second agent: validate roadmap; if invalid, refine up to MAX_REFINEMENT_ROUNDS times
             try {
@@ -612,17 +600,17 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                     }
                     if (validationResult.valid) {
                         if (round > 0) {
-                            console.log(`✅ Roadmap accepted after ${round} refinement(s)`);
+                            console.log(`Roadmap accepted after ${round} refinement(s)`);
                         }
                         break;
                     }
                     if (!validationResult.feedback || round === MAX_REFINEMENT_ROUNDS) {
                         if (round > 0) {
-                            console.log(`⚠️ Using roadmap after ${round} refinement(s); validator still had concerns`);
+                            console.log(`Using roadmap after ${round} refinement(s); validator still had concerns`);
                         }
                         break;
                     }
-                    console.log(`🔍 Validator round ${round + 1}: ${validationResult.issues?.join("; ") || validationResult.feedback}`);
+                    console.log(`Validator round ${round + 1}: ${validationResult.issues?.join("; ") || validationResult.feedback}`);
                     let refinementResponse: string;
                     const lfRefineHandler = createLangfuseHandler({ traceName: "roadmap-refine", tags: ["roadmap"], metadata: { round: round + 1 } });
                     try {
@@ -657,8 +645,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             // Validate and enrich with resources
             return await this.enrichRoadmapWithResources(roadmapData, category, profile);
         } catch (error: any) {
-            console.error("Roadmap generation error:", error);
-            console.error("Error stack:", error.stack);
+            console.error("Roadmap generation error:", error.message);
             
             // If it's an Ollama connection error, don't fallback - throw it
             if (error.message?.includes("Ollama service is not available")) {
@@ -686,7 +673,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
 
         const learningStyles = profile.learningStyles?.length ? profile.learningStyles.join(", ") : "not set";
         const timeAvailability = profile.timeAvailability || "moderate";
-        console.log(`📚 Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s). Profile: learning styles [${learningStyles}], time [${timeAvailability}]. Recommending 1–5 resources per module based on profile.`);
+        console.log(`Starting resource enrichment (timeout: ${GLOBAL_TIMEOUT / 1000}s, styles: [${learningStyles}], time: ${timeAvailability})`);
 
         const enrichedStages: RoadmapStage[] = [];
         let isFirstModule = true;
@@ -695,7 +682,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
             for (const stage of roadmapData.stages || []) {
                 // Check global timeout before processing each stage
                 if (Date.now() - startTime > GLOBAL_TIMEOUT) {
-                    console.warn(`⏱️ Global timeout reached during enrichment. Skipping remaining stages.`);
+                    console.warn(`Global timeout reached during enrichment. Skipping remaining stages.`);
                     break;
                 }
 
@@ -725,11 +712,10 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                                 )
                             ]);
                         } catch (err: any) {
-                            console.warn(`⚠️ Resource fetch failed for "${module.title}": ${err.message}`);
+                            console.warn(`Resource fetch failed for "${module.title}": ${err.message}`);
                         }
                     }
 
-                    // Ensure every module has at least 3 resources (max 6); add fallbacks if needed
                     const minResources = 3;
                     const maxResources = 6;
                     if (resources.length < minResources) {
@@ -797,7 +783,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
         }
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`✅ Resource enrichment completed in ${elapsed}s (${enrichedStages.length} stages)`);
+        console.log(`Resource enrichment completed in ${elapsed}s (${enrichedStages.length} stages)`);
 
         return {
             title: roadmapData.title || `${category} Learning Roadmap`,
@@ -825,7 +811,7 @@ Generate the corrected roadmap. Same JSON structure: title, description, stages 
                 trackCount: item.trackCount || 0
             }));
         } catch (err: any) {
-            console.warn(`⚠️ iTunes podcasts fetch failed for "${searchQuery}":`, err?.message || err);
+            console.warn(`iTunes podcasts fetch failed for "${searchQuery}":`, err?.message || err);
             return [];
         }
     }
@@ -1460,8 +1446,6 @@ Create a focused roadmap that bridges the gap between current skills and job req
             const client = await clientPromise;
             const collection = client.db("rag-agent").collection("documents");
 
-            // Find documents that match this category
-            // Note: This assumes you'll add category metadata when storing documents in the future
             const docs = await collection.find({
                 $or: [
                     { "metadata.type": "cv" },

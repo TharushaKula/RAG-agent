@@ -86,11 +86,11 @@ export class SemanticMatcher {
             try {
                 const llmReqs = await this.extractRequirementsWithLLM(jdText);
                 if (llmReqs.length >= 3) {
-                    console.log(`📋 LLM extracted ${llmReqs.length} requirements`);
+                    console.log(`LLM extracted ${llmReqs.length} requirements`);
                     return llmReqs.slice(0, 30);
                 }
             } catch (err: any) {
-                console.warn(`⚠️ LLM requirement extraction failed, falling back to regex: ${err.message}`);
+                console.warn(`LLM requirement extraction failed, falling back to regex: ${err.message}`);
             }
         }
 
@@ -343,8 +343,7 @@ Response format:
             }));
         }
 
-        // Sub-chunk large sections so each chunk is 150-300 chars
-        // This ensures embeddings are focused (not diluted by multi-topic paragraphs)
+        // Sub-chunk large sections to keep embeddings topically focused
         const subChunked: CVSection[] = [];
         const splitter = new RecursiveCharacterTextSplitter({
             chunkSize: 250,
@@ -384,16 +383,14 @@ Response format:
         cvSource: string,
         jdSource: string
     ): Promise<MatchResult> {
-        console.log('🔍 Starting semantic matching...');
+        console.log('Starting semantic matching...');
 
-        // Extract requirements and CV sections
         const [requirements, cvSections] = await Promise.all([
             this.extractRequirements(jdText),
             this.extractCVSections(cvText),
         ]);
 
-        console.log(`📋 Extracted ${requirements.length} requirements from JD`);
-        console.log(`📄 Extracted ${cvSections.length} sub-chunks from CV`);
+        console.log(`Extracted ${requirements.length} requirements from JD, ${cvSections.length} sub-chunks from CV`);
 
         if (requirements.length === 0) {
             throw new Error('No requirements found in job description');
@@ -402,21 +399,15 @@ Response format:
             throw new Error('No sections found in CV');
         }
 
-        // Generate embeddings in batch
-        console.log('🔄 Generating embeddings...');
         const [requirementEmbeddings, cvEmbeddings] = await Promise.all([
             this.embeddingService.embedBatch(requirements.map(r => r.text)),
             this.embeddingService.embedBatch(cvSections.map(s => s.text)),
         ]);
 
-        console.log(`✅ Embeddings ready — Requirements: ${requirementEmbeddings.length}, CV chunks: ${cvEmbeddings.length}`);
-
         if (requirementEmbeddings.length === 0 || cvEmbeddings.length === 0) {
             throw new Error('Failed to generate embeddings');
         }
 
-        // Calculate similarities
-        console.log('🔢 Calculating similarity scores...');
         const requirementMatches: RequirementMatch[] = [];
 
         for (let i = 0; i < requirements.length; i++) {
@@ -540,7 +531,7 @@ Response format:
             recommendations,
         };
 
-        console.log(`✅ Matching complete. Overall score: ${(overallScore * 100).toFixed(1)}%`);
+        console.log(`Matching complete. Overall score: ${(overallScore * 100).toFixed(1)}%`);
         return matchResult;
     }
 
@@ -561,7 +552,7 @@ Response format:
             try {
                 return await this.generateRecommendationsWithLLM(matches, jdText);
             } catch (err: any) {
-                console.warn(`⚠️ LLM recommendation generation failed, falling back to template: ${err.message}`);
+                console.warn(`LLM recommendation generation failed, falling back to template: ${err.message}`);
             }
         }
 

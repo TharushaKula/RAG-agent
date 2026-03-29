@@ -35,7 +35,7 @@ export class YouTubeService {
     constructor(apiKey?: string) {
         this.apiKey = apiKey || process.env.YOUTUBE_API_KEY || '';
         if (!this.apiKey) {
-            console.warn('⚠️  YouTube API key not found. YouTube features will be disabled.');
+            console.warn('YouTube API key not found. YouTube features will be disabled.');
         }
 
         this.client = axios.create({
@@ -132,10 +132,10 @@ export class YouTubeService {
             const isQuota = status === 403 || error.response?.data?.error?.message?.toLowerCase().includes('quota');
             if (isQuota && !youtubeQuotaLogged) {
                 youtubeQuotaLogged = true;
-                console.warn('⚠️ YouTube API quota exceeded; video results will be skipped. Other sources (MS Learn, MIT OCW, Books) will still be used.');
+                console.warn('YouTube API quota exceeded; video results will be skipped. Other sources (MS Learn, MIT OCW, Books) will still be used.');
             } else if (!isQuota && !youtubeErrorLogged) {
                 youtubeErrorLogged = true;
-                console.warn('⚠️ YouTube API unavailable:', error.message || 'unknown error');
+                console.warn('YouTube API unavailable:', error.message || 'unknown error');
             }
             return [];
         }
@@ -209,7 +209,7 @@ export class YouTubeService {
         } catch (error: any) {
             if (!youtubeErrorLogged) {
                 youtubeErrorLogged = true;
-                console.warn('⚠️ YouTube API unavailable:', error.message || 'unknown error');
+                console.warn('YouTube API unavailable:', error.message || 'unknown error');
             }
             return [];
         }

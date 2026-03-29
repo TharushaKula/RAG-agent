@@ -53,11 +53,11 @@ async function setupIndex() {
         if (existingIndex) {
             console.log("Index 'default' exists. Updating definition...");
             await (collection as any).updateSearchIndex("default", indexDefinition.definition);
-            console.log("\x1b[32m%s\x1b[0m", "✅ Index update request submitted successfully!");
+            console.log("\x1b[32m%s\x1b[0m", "Index update request submitted successfully!");
         } else {
             console.log("Creating new Atlas Vector Search index 'default'...");
             await (collection as any).createSearchIndex(indexDefinition);
-            console.log("\x1b[32m%s\x1b[0m", "✅ Index creation request submitted successfully!");
+            console.log("\x1b[32m%s\x1b[0m", "Index creation request submitted successfully!");
         }
 
         console.log("Note: It may take 1-3 minutes for MongoDB Atlas to rebuild the index.");
@@ -65,7 +65,7 @@ async function setupIndex() {
 
     } catch (err: any) {
         if (err.message.includes("updateSearchIndex") || err.message.includes("helper")) {
-            console.log("\x1b[33m%s\x1b[0m", "⚠️ Driver helper failed. please manually add the userId filter in Atlas UI.");
+            console.log("\x1b[33m%s\x1b[0m", "Driver helper failed. Please manually add the userId filter in Atlas UI.");
             console.log(JSON.stringify({ type: "filter", path: "userId" }, null, 2));
         }
         throw err;

@@ -44,5 +44,25 @@ next-env.d.ts
 .vscode/
 .idea/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+
 # Local fine-tuned model artifacts (too large for GitHub)
 embedding-service/custom-sbert-model/model.safetensors
+
+# Generated reports & scripts
+generate_testing_report.py
+Skill_Bridge_AI_Testing_Report.pdf
+
+# Debug/test scripts
+backend/src/scripts/debug-db.ts
+backend/src/scripts/test-roadmap.ts
+
+# Claude Code
+.claude/

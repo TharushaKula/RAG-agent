@@ -21,23 +21,13 @@ export const chat = async (req: Request, res: Response) => {
         const lastMessage = messages[messages.length - 1];
         const question = lastMessage.content;
 
-        // 1. Retrieve context
-        console.log(`🔎 Chat Request: User ${userId}, Sources:`, activeSources);
         const retriever = await getRetrieverForUser(userId, activeSources);
         const contextDocs = await retriever.invoke(question);
 
-        console.log(`🔍 Retrieved ${contextDocs.length} documents for query: "${question}"`);
-        if (contextDocs.length > 0) {
-            console.log("📄 Top Doc Source:", contextDocs[0].metadata.source);
-        } else {
-            console.warn("⚠️ No documents retrieved!");
-        }
-        if (contextDocs.length > 0) {
-            console.log("📄 First doc source:", contextDocs[0].metadata.source);
-            console.log("📄 First doc preview:", contextDocs[0].pageContent.slice(0, 100));
+        if (contextDocs.length === 0) {
+            console.warn("No documents retrieved for query");
         }
 
-        // Combine docs for the LLM prompt
         const context = contextDocs.map((doc: any) => {
             const sourceType = doc.metadata.type ? `[${doc.metadata.type.toUpperCase()}]` : "[DOCUMENT]";
             const sourceName = doc.metadata.source ? `(Source: ${doc.metadata.source})` : "";
@@ -52,11 +42,10 @@ export const chat = async (req: Request, res: Response) => {
 
         const llm = new ChatOllama({
             model: "gpt-oss:20b-cloud",
-            baseUrl: "http://127.0.0.1:11434", // Localhost IP
+            baseUrl: "http://127.0.0.1:11434",
             temperature: 0.7,
         });
 
-        // 3. Prompt
         const prompt = ChatPromptTemplate.fromMessages([
             [
                 "system",
@@ -96,7 +85,6 @@ export const chat = async (req: Request, res: Response) => {
             { callbacks: lfHandler ? [lfHandler] : [] }
         );
 
-        // 4. Return stream with Sources in Header
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         res.setHeader("X-Sources", encodedSources);
 

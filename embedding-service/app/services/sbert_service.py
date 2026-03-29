@@ -22,9 +22,9 @@ class SBERTService:
         print(f"Loading SBERT model: {model_name}...")
         try:
             self.model = SentenceTransformer(model_name)
-            print(f"✅ Model loaded successfully. Embedding dimensions: {self.model.get_sentence_embedding_dimension()}")
+            print(f"Model loaded successfully. Embedding dimensions: {self.model.get_sentence_embedding_dimension()}")
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(f"Error loading model: {e}")
             raise
     
     def embed(self, text: str) -> np.ndarray:

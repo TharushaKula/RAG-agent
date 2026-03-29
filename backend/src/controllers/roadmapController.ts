@@ -91,29 +91,24 @@ export const generateRoadmap = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "Invalid source. Must be: cv or hybrid" });
         }
 
-        console.log(`🛣️ Generating roadmap for user ${userId}, source: ${source}`);
+        console.log(`Generating roadmap for user ${userId}, source: ${source}`);
 
         const embeddingServiceUrl = process.env.EMBEDDING_SERVICE_URL || 'http://localhost:8000';
         const generator = new RoadmapGenerator(embeddingServiceUrl);
 
-        // Prepare input data
         const inputData: any = {};
         const cvSource = req.body.cvSource;
         const jdSource = req.body.jdSource;
-        const targetRole = req.body.targetRole; // Target job role for CV analysis
+        const targetRole = req.body.targetRole;
 
-        // Validate target role for CV analysis
         if (source === "cv" && (!targetRole || !targetRole.trim())) {
             return res.status(400).json({ error: "Target job role is required for CV analysis" });
         }
 
-        // Add target role to input data
         if (targetRole && targetRole.trim()) {
             inputData.targetRole = targetRole.trim();
-            console.log(`🎯 Target role: ${targetRole.trim()}`);
         }
 
-        // Get CV text if needed
         if (source === "cv" || source === "hybrid") {
             if (cvSource) {
                 const vectorStore = await getVectorStore();
@@ -139,7 +134,6 @@ export const generateRoadmap = async (req: Request, res: Response) => {
             }
         }
 
-        // Get JD text if needed (hybrid only)
         if (source === "hybrid") {
             if (jdSource) {
                 const vectorStore = await getVectorStore();
@@ -165,17 +159,10 @@ export const generateRoadmap = async (req: Request, res: Response) => {
             }
         }
 
-        // Generate roadmap
-        console.log(`⚙️ Starting roadmap generation...`);
         const roadmap = await generator.generateRoadmap(userId, source as "cv" | "hybrid", inputData);
-        console.log(`📋 Roadmap generated, saving to database...`);
 
-        // Save to database
         const savedRoadmap = await roadmapService.createRoadmap(roadmap);
 
-        console.log(`✅ Roadmap saved: ${savedRoadmap._id}`);
-
-        // Serialize and send; use manual JSON.stringify so we catch serialization errors and always send JSON
         if (res.headersSent) return;
         try {
             const roadmapJson = roadmapToJSON(savedRoadmap);
@@ -206,7 +193,6 @@ export const generateRoadmap = async (req: Request, res: Response) => {
             source
         });
 
-        // Provide more specific error messages; always return JSON so client gets a parseable body
         let errorMessage = "Failed to generate roadmap";
         try {
             errorMessage = typeof error?.message === "string" ? error.message : String(error) || errorMessage;
@@ -283,7 +269,6 @@ export const getRoadmap = async (req: Request, res: Response) => {
             return res.status(404).json({ error: "Roadmap not found" });
         }
 
-        // Recalculate progress
         await roadmapService.calculateProgress(roadmapId, userId);
         const updatedRoadmap = await roadmapService.getRoadmap(roadmapId, userId);
 

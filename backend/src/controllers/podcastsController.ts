@@ -23,18 +23,15 @@ function buildSearchTermFromProfile(
 ): string {
     const terms: string[] = [];
 
-    // Primary: target profession (e.g., "Software Developer" -> "software development")
     if (targetProfession && targetProfession.trim()) {
         terms.push(targetProfession.trim());
     }
 
-    // Secondary: learning goals
     if (learningGoals && learningGoals.length > 0) {
         const goalTerm = LEARNING_GOAL_TERMS[learningGoals[0]] || "learning";
         terms.push(goalTerm);
     }
 
-    // Fallback if no profile data
     if (terms.length === 0) {
         return "technology career learning";
     }
@@ -68,10 +65,7 @@ export const getPodcasts = async (req: Request, res: Response) => {
             user.learningGoals
         );
 
-        console.log(`🎙️ Fetching podcasts for user ${userId}, search: "${searchTerm}"${queryTerm ? " (user search)" : " (profile)"}`);
-
-        // iTunes Search API - https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/
-        // Parameters: term (required), media=podcast, entity=podcast, limit=10
+        console.log(`Fetching podcasts for user ${userId}, search: "${searchTerm}"`);
         const encodedTerm = encodeURIComponent(searchTerm);
         const url = `https://itunes.apple.com/search?term=${encodedTerm}&media=podcast&entity=podcast&limit=10`;
 
@@ -82,7 +76,6 @@ export const getPodcasts = async (req: Request, res: Response) => {
 
         const data = await iTunesRes.json();
 
-        // Extract relevant fields from iTunes response
         const podcasts = (data.results || []).map((item: any) => ({
             id: item.collectionId,
             name: item.collectionName,

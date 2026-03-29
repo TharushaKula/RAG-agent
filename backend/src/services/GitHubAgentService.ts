@@ -128,7 +128,6 @@ export class GitHubAgentService extends EventEmitter {
             await this.page!.goto(profileUrl, { waitUntil: 'networkidle' });
             await this.captureFrame();
 
-            // Step 2: Achievements (Visual only)
             await this.executeAction('Synthesizing achievements from visual badges...', async () => {
                 const achievementData = await this.page!.$$eval('a[href*="tab=achievements"]', els =>
                     els.map(el => {
@@ -141,7 +140,6 @@ export class GitHubAgentService extends EventEmitter {
                 this.emit('analysis', { achievements });
             });
 
-            // Step 3: Demonstrate Pinned Repos
             await this.executeAction('Highlighting pinned repositories for demonstration...', async () => {
                 await this.page!.evaluate(() => {
                     const pinned = document.querySelector('.pinned-item-list-item');

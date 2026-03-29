@@ -34,10 +34,10 @@ import { checkEmbeddingService } from './utils/checkEmbeddingService';
 setTimeout(async () => {
     const check = await checkEmbeddingService();
     if (check.available) {
-        console.log('✅ Embedding service is available:', check.details);
+        console.log('Embedding service is available:', check.details);
     } else {
-        console.warn('⚠️  Embedding service is not available:', check.details);
-        console.warn('💡 Semantic matching features will not work until the service is started.');
+        console.warn('Embedding service is not available:', check.details);
+        console.warn('Semantic matching features will not work until the service is started.');
         console.warn('   Start with: cd embedding-service && docker-compose up');
     }
 }, 2000); // Wait 2 seconds after server starts
@@ -64,7 +64,6 @@ app.get("/", (req, res) => {
 
 // Socket.IO Handling
 io.on("connection", (socket) => {
-    console.log("Client connected:", socket.id);
     const agent = new GitHubAgentService();
 
     socket.on("start-analysis", async (profileUrl: string) => {
@@ -82,7 +81,6 @@ io.on("connection", (socket) => {
     socket.on("stop", () => agent.stop());
 
     socket.on("disconnect", () => {
-        console.log("Client disconnected:", socket.id);
         agent.stop();
     });
 });

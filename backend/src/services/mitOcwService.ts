@@ -73,7 +73,7 @@ export class MITOCWService {
             } catch (fallbackError: any) {
                 if (!mitOcwErrorLogged) {
                     mitOcwErrorLogged = true;
-                    console.warn('⚠️ MIT Open Learning API unavailable:', error.message || 'unknown error');
+                    console.warn('MIT Open Learning API unavailable:', error.message || 'unknown error');
                 }
                 return [];
             }

@@ -51,7 +51,7 @@ export async function getRetrieverForUser(userId: string, filterSources?: string
         };
     }
 
-    console.log("🛡️ RAG Retriever Filter (MQL):", JSON.stringify(filter, null, 2));
+    console.log("RAG Retriever Filter (MQL):", JSON.stringify(filter, null, 2));
 
     return vectorStore.asRetriever({
         filter: filter,

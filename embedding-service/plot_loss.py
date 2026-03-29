@@ -15,7 +15,7 @@ def plot_losses():
     has_val = os.path.exists(VAL_LOG)
     
     if not has_train and not has_val:
-        print("❌ No loss logs found! Please run the fine-tuning script first.")
+        print("No loss logs found! Please run the fine-tuning script first.")
         return
 
     plt.figure(figsize=(10, 6))
@@ -41,15 +41,15 @@ def plot_losses():
     
     # Check if we have any lines plotted
     if not plt.gca().get_lines():
-        print("❌ Logs are empty.")
+        print("Logs are empty.")
         return
         
     # Save the plot
     try:
         plt.savefig(OUTPUT_PLOT, dpi=300, bbox_inches='tight')
-        print(f"✅ Loss plot successfully saved to: {OUTPUT_PLOT}")
+        print(f"Loss plot successfully saved to: {OUTPUT_PLOT}")
     except Exception as e:
-        print(f"❌ Error saving plot: {e}")
+        print(f"Error saving plot: {e}")
 
 if __name__ == "__main__":
     plot_losses()

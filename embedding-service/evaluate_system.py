@@ -124,7 +124,7 @@ def evaluate_embedding_model(model: SentenceTransformer, dataset: dict) -> dict:
 
     pairs = dataset.get("sbert_retrieval_pairs", [])
     if not pairs:
-        print("⚠️  No SBERT retrieval pairs found in dataset.")
+        print("No SBERT retrieval pairs found in dataset.")
         return {}
 
     correct_at_1 = 0
@@ -242,7 +242,7 @@ def evaluate_semantic_matcher(model: SentenceTransformer, dataset: dict) -> dict
 
     pairs = dataset.get("semantic_match_pairs", [])
     if not pairs:
-        print("⚠️  No semantic match pairs found in dataset.")
+        print("No semantic match pairs found in dataset.")
         return {}
 
     # Label mapping for comparison
@@ -406,7 +406,7 @@ def evaluate_requirement_extraction(model: SentenceTransformer, dataset: dict) -
 
     cases = dataset.get("requirement_extraction_cases", [])
     if not cases:
-        print("⚠️  No requirement extraction cases found in dataset.")
+        print("No requirement extraction cases found in dataset.")
         return {}
 
     all_precisions = []
@@ -545,7 +545,7 @@ def evaluate_roadmap_agent(model: SentenceTransformer, dataset: dict) -> dict:
     cat_cases = dataset.get("category_classification_cases", [])
 
     if not cases:
-        print("⚠️  No roadmap agent cases found in dataset.")
+        print("No roadmap agent cases found in dataset.")
         return {}
 
     structural_scores = []
@@ -687,7 +687,7 @@ def evaluate_roadmap_agent(model: SentenceTransformer, dataset: dict) -> dict:
             "is_bad": is_bad,
         })
 
-        status = "✅" if not is_bad else ("⚠️ BAD" if structural_score < 0.7 else "❌ BAD not caught")
+        status = "PASS" if not is_bad else ("WARN BAD" if structural_score < 0.7 else "FAIL BAD not caught")
         print(f"\n  {case['id']}: {status}")
         print(f"    Structural={structural_score:.2f}  Topic={topic_score:.2f}  Progression={progression_score:.2f}  Resources={resource_score:.2f}")
 
@@ -753,7 +753,7 @@ def evaluate_validator_agent(model: SentenceTransformer, dataset: dict) -> dict:
 
     cases = dataset.get("validator_agent_cases", [])
     if not cases:
-        print("⚠️  No validator agent cases found in dataset.")
+        print("No validator agent cases found in dataset.")
         return {}
 
     predictions = []
@@ -835,7 +835,7 @@ def evaluate_validator_agent(model: SentenceTransformer, dataset: dict) -> dict:
             "correct": predicted_label == true_label,
         })
 
-        status = "✅" if predicted_label == true_label else "❌"
+        status = "PASS" if predicted_label == true_label else "FAIL"
         print(f"  {status} {case['id']}: true={true_label}, pred={predicted_label}, issues={issues_found}")
 
     # Binary metrics (treat "invalid" as positive class)
@@ -896,7 +896,7 @@ def evaluate_rag_chat_agent(model: SentenceTransformer, dataset: dict) -> dict:
 
     cases = dataset.get("rag_chat_agent_cases", [])
     if not cases:
-        print("⚠️  No RAG chat agent cases found in dataset.")
+        print("No RAG chat agent cases found in dataset.")
         return {}
 
     answer_relevances = []
@@ -966,7 +966,7 @@ def evaluate_rag_chat_agent(model: SentenceTransformer, dataset: dict) -> dict:
             "correctly_handled": (is_answerable and not has_refusal) or (not is_answerable and has_refusal),
         })
 
-        status = "✅" if case_details[-1]["correctly_handled"] else "❌"
+        status = "PASS" if case_details[-1]["correctly_handled"] else "FAIL"
         print(f"  {status} {case['id']}: relevance={answer_relevance:.3f}  faith={faithfulness:.3f}  complete={completeness:.3f}  answerable={is_answerable}")
 
     # Aggregates

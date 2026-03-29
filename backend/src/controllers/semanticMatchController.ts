@@ -21,9 +21,6 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        console.log("🔍 Starting semantic matching process...");
-
-        // Get CV text - from database or file
         let cvText = "";
         let cvSourceName = "";
 
@@ -48,7 +45,6 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
                     .filter((text: string) => text.trim().length > 0)
                     .join("\n\n");
                 cvSourceName = cvSource;
-                console.log(`📄 Retrieved CV from database: ${cvSource} (${documents.length} chunks)`);
             } catch (err: any) {
                 console.error("Error retrieving CV from database:", err);
                 return res.status(500).json({ error: "Failed to retrieve CV from database" });
@@ -74,7 +70,6 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "CV is required (select from database or upload file)" });
         }
 
-        // Get JD text - from database, file, or text input
         let jdTextContent = "";
         let jdSourceName = "text-input";
 
@@ -99,7 +94,6 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
                     .filter((text: string) => text.trim().length > 0)
                     .join("\n\n");
                 jdSourceName = jdSource;
-                console.log(`📄 Retrieved JD from database: ${jdSource} (${documents.length} chunks)`);
             } catch (err: any) {
                 console.error("Error retrieving JD from database:", err);
                 return res.status(500).json({ error: "Failed to retrieve Job Description from database" });
@@ -116,9 +110,7 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
                 jdTextContent = buffer.toString("utf-8");
             }
         } else if (jdText) {
-            // Use provided text
             jdTextContent = jdText;
-            // Use provided title or generate a default one
             if (jdTitle && jdTitle.trim()) {
                 jdSourceName = jdTitle.trim();
             } else {
@@ -132,20 +124,14 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "Job description text is empty" });
         }
 
-        // Initialize services
         const embeddingServiceUrl = process.env.EMBEDDING_SERVICE_URL || 'http://localhost:8000';
-        console.log(`🔧 Using embedding service URL: ${embeddingServiceUrl}`);
         const embeddingService = new EmbeddingService(embeddingServiceUrl);
         
-        // Check if embedding service is available
         try {
             await embeddingService.healthCheck();
-            console.log("✅ Embedding service is available");
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error("❌ Embedding service not available:", errorMessage);
-            console.error("💡 Make sure to start the embedding service:");
-            console.error("   cd embedding-service && docker-compose up");
+            console.error("Embedding service not available:", errorMessage);
             return res.status(503).json({
                 error: "Embedding service is not available. Please ensure it is running.",
                 details: errorMessage,
@@ -153,18 +139,16 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             });
         }
 
-        // Initialize LLM for structured extraction and recommendation generation
         const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
         const ollamaModel = process.env.OLLAMA_MODEL || "gpt-oss:20b-cloud";
         const llm = new ChatOllama({
             model: ollamaModel,
             baseUrl: ollamaBaseUrl,
-            temperature: 0.3, // Low temperature for structured extraction
+            temperature: 0.3,
         });
 
         const matcher = new SemanticMatcher(embeddingService, 0.45, llm);
 
-        // Perform semantic matching
         const matchResult = await matcher.match(
             cvText,
             jdTextContent,
@@ -173,14 +157,12 @@ export const performSemanticMatch = async (req: Request, res: Response) => {
             jdSourceName
         );
 
-        // Store match result in database
         const client = await clientPromise;
         const db = client.db("rag-agent");
         const matchResultsCollection = db.collection("match-results");
 
         await matchResultsCollection.insertOne(matchResult);
 
-        console.log(`✅ Semantic matching complete. Match ID: ${matchResult.matchId}`);
 
         res.json({
             success: true,

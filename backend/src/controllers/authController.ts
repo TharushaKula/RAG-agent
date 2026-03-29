@@ -31,7 +31,6 @@ export const signup = async (req: Request, res: Response) => {
 
         const result = await users.insertOne(newUser);
 
-        // Generate Token
         const token = jwt.sign({ userId: result.insertedId.toString(), email }, JWT_SECRET, { expiresIn: "7d" });
 
         return res.status(201).json({

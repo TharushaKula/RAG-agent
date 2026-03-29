@@ -6,7 +6,6 @@ import uvicorn
 import sys
 import os
 
-# Ensure we can import from services
 # When running in Docker, the structure is /app/app/ so we need to add /app/app to path
 app_dir = os.path.dirname(os.path.abspath(__file__))
 if app_dir not in sys.path:

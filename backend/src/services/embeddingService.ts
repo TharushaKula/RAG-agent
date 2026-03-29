@@ -36,9 +36,7 @@ export class EmbeddingService {
      */
     async healthCheck(): Promise<HealthResponse> {
         try {
-            console.log(`🔍 Checking embedding service health at: ${this.baseUrl}/health`);
             const response = await this.client.get<HealthResponse>('/health');
-            console.log(`✅ Embedding service is healthy:`, response.data);
             return response.data;
         } catch (error: any) {
             let errorMessage = 'Unknown error';
@@ -55,11 +53,10 @@ export class EmbeddingService {
                 errorMessage = error.message;
             }
             
-            console.error(`❌ Embedding service health check failed:`, {
+            console.error(`Embedding service health check failed:`, {
                 url: `${this.baseUrl}/health`,
                 code: error.code,
-                message: errorMessage,
-                fullError: error
+                message: errorMessage
             });
             
             throw new Error(`Embedding service health check failed: ${errorMessage}`);

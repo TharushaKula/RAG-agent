@@ -63,15 +63,11 @@ export const getLearningResources = async (req: Request, res: Response) => {
             }
         }
 
-        // For other platforms, we'll add integrations later
-        // For now, return empty arrays
         if (!platform || platform === "coursera") {
-            // TODO: Integrate Coursera API
             resources.coursera = [];
         }
 
         if (!platform || platform === "udemy") {
-            // TODO: Integrate Udemy API
             resources.udemy = [];
         }
 
@@ -206,7 +202,6 @@ export const searchLearningResources = async (req: Request, res: Response) => {
                     parseInt(maxResults as string, 10)
                 );
 
-                // Service returns empty array on failure, which is fine
                 const formattedCourses = courses.map((course) => ({
                     id: course.id,
                     title: course.title,
@@ -222,7 +217,6 @@ export const searchLearningResources = async (req: Request, res: Response) => {
 
                 return res.json({ success: true, data: formattedCourses });
             } catch (error: any) {
-                // If service throws (shouldn't happen, but just in case), return empty results
                 console.error("MIT OCW search error:", error.message);
                 return res.json({ success: true, data: [] });
             }

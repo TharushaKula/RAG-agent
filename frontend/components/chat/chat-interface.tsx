@@ -86,31 +86,31 @@ export function ChatInterface({ initialView = "chat" }: { initialView?: "chat" |
     const fetchFiles = async () => {
         if (!token) return;
         try {
-            console.log("🔄 Fetching user files...");
+            console.log("Fetching user files...");
             const res = await fetch("/api/cv/files", {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-                console.log("✅ Files fetched:", data);
+                console.log("Files fetched:", data);
                 setAvailableFiles(data);
                 // Auto-select first available if not selected
                 if (data.cv.length > 0 && !selectedCV) {
-                    console.log("🔹 Auto-selecting CV:", data.cv[0]);
+                    console.log("Auto-selecting CV:", data.cv[0]);
                     setSelectedCV(data.cv[0]);
                 }
                 if (data.jd.length > 0 && !selectedJD) {
-                    console.log("🔹 Auto-selecting JD:", data.jd[0]);
+                    console.log("Auto-selecting JD:", data.jd[0]);
                     setSelectedJD(data.jd[0]);
                 }
             } else if (res.status === 401) {
-                console.warn("⚠️ Token expired or invalid. Logging out.");
+                console.warn("Token expired or invalid. Logging out.");
                 logout();
             } else {
-                console.error("❌ Failed to fetch files, status:", res.status);
+                console.error("Failed to fetch files, status:", res.status);
             }
         } catch (err) {
-            console.error("❌ Failed to fetch files", err);
+            console.error("Failed to fetch files", err);
         }
     };
 
